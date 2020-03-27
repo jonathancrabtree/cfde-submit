@@ -1,3 +1,0 @@
-
-    [console_scripts]
-    cfde=cfde_client.main:cli
