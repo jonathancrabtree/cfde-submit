@@ -1,0 +1,14 @@
+LICENSE
+README.md
+setup.cfg
+setup.py
+cfde_client/__init__.py
+cfde_client/client.py
+cfde_client/config.py
+cfde_client/main.py
+cfde_client.egg-info/PKG-INFO
+cfde_client.egg-info/SOURCES.txt
+cfde_client.egg-info/dependency_links.txt
+cfde_client.egg-info/entry_points.txt
+cfde_client.egg-info/requires.txt
+cfde_client.egg-info/top_level.txt
