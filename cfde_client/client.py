@@ -1,4 +1,5 @@
 import os
+from packaging.version import parse as parse_version
 import shutil
 
 from bdbag import bdbag_api
@@ -10,6 +11,7 @@ import globus_sdk
 import requests
 
 from cfde_client import CONFIG
+from .version import __version__ as VERSION
 
 
 def ts_validate(data_path, schema=None):
@@ -148,11 +150,19 @@ class CfdeClient():
         except Exception:
             # TODO: Should there be any better error-handling here, or is the exception acceptable?
             raise
+        # Verify client version is compatible with service
+        if parse_version(dconf["MIN_VERSION"]) > parse_version(VERSION):
+            raise RuntimeError("This CFDE Client is not up to date and can no longer make "
+                               "submissions. Please update the client and try again.")
         self.service_instance = kwargs.get("service_instance") or "prod"
         # Verify service instance is valid
         if self.service_instance not in self.flows.keys():
             raise ValueError("Flow configuration for service_instance '{}' not found"
                              .format(self.service_instance))
+
+    @property
+    def version(self):
+        return VERSION
 
     def start_deriva_flow(self, data_path, catalog_id=None, schema=None, server=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
@@ -191,7 +201,13 @@ class CfdeClient():
                     and the return value will not have valid DERIVA Flow information.
                     Default False.
 
-        Keyword arguments are passed directly to the ``make_bag()`` function of the
+        Keyword Arguments:
+            force_http (bool): Should the data be sent using HTTP instead of Globus Transfer,
+                    even if Globus Transfer is available? Because Globus Transfer is more
+                    robust than HTTP, it is highly recommended to leave this False.
+                    Default False.
+
+        Other keyword arguments are passed directly to the ``make_bag()`` function of the
         BDBag API (see https://github.com/fair-research/bdbag for details).
         """
         data_path = os.path.abspath(data_path)
@@ -204,6 +220,8 @@ class CfdeClient():
                                  "a named catalog ('{}'). Retry without specifying "
                                  "a schema.".format(schema, catalog_id))
             schema = self.catalogs[catalog_id]
+        # Pull out known kwargs
+        force_http = kwargs.pop("force_http", False)
 
         if handle_git_repos:
             # If Git repo, set output_dir appropriately
@@ -288,10 +306,10 @@ class CfdeClient():
             }
 
         # Set up Flow
-        # If local EP exists, can use Transfer
+        # If local EP exists (and not force_http), can use Transfer
         # Local EP fetched now in case GCP started after Client creation
         local_endpoint = globus_sdk.LocalGlobusConnectPersonal().endpoint_id
-        if local_endpoint:
+        if local_endpoint and not force_http:
             # Populate Transfer fields in Flow
             flow_id = self.flows[self.service_instance]
             flow_input = {

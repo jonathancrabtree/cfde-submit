@@ -27,11 +27,12 @@ def cli():
 # TODO: Debug "hidden" missing parameter
 @click.option("--no_browser", is_flag=True, default=False)  # , hidden=True)
 @click.option("--server", default=None)  # , hidden=True)
+@click.option("--force-http", is_flag=True, default=False)  # , hidden=True)
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--service-instance", default=None)  # , hidden=True)
 def run(data_path, catalog, schema, output_dir, delete_dir, ignore_git, dry_run, force_login,
-        no_browser, server, bag_kwargs_file, client_state_file, service_instance):
+        no_browser, server, force_http, bag_kwargs_file, client_state_file, service_instance):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
     if bag_kwargs_file:
         with open(bag_kwargs_file) as f:
@@ -47,7 +48,8 @@ def run(data_path, catalog, schema, output_dir, delete_dir, ignore_git, dry_run,
         start_res = cfde.start_deriva_flow(data_path, catalog_id=catalog, schema=schema,
                                            output_dir=output_dir, delete_dir=delete_dir,
                                            handle_git_repos=(not ignore_git),
-                                           server=server, dry_run=dry_run, **bag_kwargs)
+                                           server=server, dry_run=dry_run,
+                                           force_http=force_http, **bag_kwargs)
     except Exception as e:
         print("Error while starting Flow: {}".format(str(e)))
         return

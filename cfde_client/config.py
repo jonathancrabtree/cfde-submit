@@ -6,7 +6,8 @@ CONFIG = {
     # Contains:
     #   CATALOGS (dict): keyword: catalog_name
     #   FLOWS (dict): keyword: flow_id
-    "DYNAMIC_CONFIG_LINK": "",
+    #   MIN_VERSION (str): The minimum version of the client required
+    "DYNAMIC_CONFIG_LINK": "https://317ec.36fe.dn.glob.us/public/CFDE/cfde_client_config.json",
     # Translations for Automate states into nicer language
     "STATE_MSGS": {
         "ACTIVE": "is still in progress",

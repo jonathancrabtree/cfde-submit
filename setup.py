@@ -1,9 +1,15 @@
+import os
 from setuptools import find_packages, setup
 
+# Single source of truth for version
+version_ns = {}
+with open(os.path.join("cfde_client", "version.py")) as f:
+    exec(f.read(), version_ns)
+version = version_ns['__version__']
 
 setup(
     name="cfde_client",
-    version="0.0.1",
+    version=version,
     packages=find_packages(),
     entry_points='''
     [console_scripts]
@@ -17,6 +23,7 @@ setup(
         "GitPython>=3.0.4",
         "globus-automate-client>=0.4",
         "globus-sdk>=1.8.0",
+        "packaging>=20.1",
         "requests>=2.22.0"
     ],
     python_requires=">=3.4"
