@@ -164,7 +164,8 @@ class CfdeClient():
     def version(self):
         return VERSION
 
-    def start_deriva_flow(self, data_path, catalog_id=None, schema=None, server=None,
+    def start_deriva_flow(self, data_path, author_email, catalog_id=None,
+                          schema=None, server=None, dataset_acls=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
                           dry_run=False, **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
@@ -175,12 +176,17 @@ class CfdeClient():
                     2) A Git repository to be copied into a BDBag
                     3) A premade BDBag directory
                     4) A premade BDBag in an archive file
+            author_email (str): The email of the author/submitter of this data.
+                    The author must view and approve the submission, and is then
+                    notified about the status of the submission.
             catalog_id (int or str): The ID of the DERIVA catalog to ingest into.
                     Default None, to create a new catalog.
             schema (str): The named schema or schema file link to validate data against.
                     Default None, to only validate against the declared TableSchema.
             server (str): The DERIVA server to ingest to.
                     Default None, to use the Action Provider-set default.
+            dataset_acls (dict): The DERIVA ACL(s) to set on the final dataset.
+                    Default None, to use the CFDE default ACLs.
             output_dir (str): The path to create an output directory in. The resulting
                     BDBag archive will be named after this directory.
                     If not set, the directory will be turned into a BDBag in-place.
@@ -317,7 +323,8 @@ class CfdeClient():
                 "source_path": data_path,
                 "fair_re_path": dest_path,
                 "is_directory": False,
-                "operation": "ingest"
+                "final_acls": dataset_acls,
+                "author_email": author_email
             }
             if catalog_id:
                 flow_input["catalog_id"] = str(catalog_id)
@@ -350,8 +357,10 @@ class CfdeClient():
 
             flow_id = self.flows[self.service_instance]
             flow_input = {
+                "source_endpoint_id": False,
                 "data_url": data_url,
-                "operation": "ingest"
+                "final_acls": dataset_acls,
+                "author_email": author_email
             }
             if catalog_id:
                 flow_input["catalog_id"] = str(catalog_id)
@@ -398,6 +407,8 @@ class CfdeClient():
         flow_def = self.flow_client.get_flow(flow_id)
         flow_status = self.flow_client.flow_action_status(flow_id, flow_def["globus_auth_scope"],
                                                           flow_instance_id).data
+        #TODO: Remove this - testing only
+        return flow_status
 
         # Create user-friendly version of status message
         STATE_MSGS = CONFIG["STATE_MSGS"]

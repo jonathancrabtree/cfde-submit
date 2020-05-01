@@ -17,8 +17,10 @@ def cli():
 
 @cli.command()
 @click.argument("data-path", nargs=1, type=click.Path(exists=True))
+@click.option("--author-email", "--email", "-e", default=None)
 @click.option("--catalog", default=None, show_default=True)
 @click.option("--schema", default=None, show_default=True)
+@click.option("--acl-file", default=None, show_default=True, type=click.Path(exists=True))
 @click.option("--output-dir", default=None, show_default=True, type=click.Path(exists=False))
 @click.option("--delete-dir/--keep-dir", is_flag=True, default=False, show_default=True)
 @click.option("--ignore-git/--handle-git", is_flag=True, default=False, show_default=True)
@@ -31,21 +33,59 @@ def cli():
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--service-instance", default=None)  # , hidden=True)
-def run(data_path, catalog, schema, output_dir, delete_dir, ignore_git, dry_run, force_login,
-        no_browser, server, force_http, bag_kwargs_file, client_state_file, service_instance):
+def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
+        dry_run, force_login, no_browser, server, force_http, bag_kwargs_file, client_state_file,
+        service_instance):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
+    # Get any saved parameters
+    if not client_state_file:
+        client_state_file = DEFAULT_STATE_FILE
+    try:
+        with open(client_state_file) as f:
+            state = json.load(f)
+    except FileNotFoundError:
+        state = {}
+
+    # Read bag_kwargs_file if provided
     if bag_kwargs_file:
         with open(bag_kwargs_file) as f:
             bag_kwargs = json.load(f)
     else:
         bag_kwargs = {}
-    if not client_state_file:
-        client_state_file = DEFAULT_STATE_FILE
+    # Read acl_file if provided
+    if acl_file:
+        with open(acl_file) as f:
+            dataset_acls = json.load(f)
+    else:
+        dataset_acls = None
+
+    # Determine author_email to use
+    # If user supplies email as option, will always use that as author_email
+    state_email = state.get("author_email")
+    # If supplied email is different from previously saved email, prompt to save
+    # Do not prompt if user has not saved email - user may not want to save email
+    if author_email is not None and state_email is not None and state_email != author_email:
+        # author_email = author_email
+        save_email = (input("Would you like to save '{}' as your default email ("
+                            "instead of '{}')? y/n: ".format(author_email, state_email))
+                      .strip().lower() in ["y", "yes"])
+    elif author_email is None and state_email is not None:
+        author_email = state_email
+        save_email = False
+        print("Using saved email '{}'".format(author_email))
+    elif author_email is None and state_email is None:
+        author_email = input("Please enter your email address for curation and updates: ").strip()
+        save_email = input("Thank you. Would you like to save '{}' for future submissions? "
+                           "y/n: ".format(author_email)).strip().lower() in ["y", "yes"]
+    # Save email in state if requested
+    if save_email:
+        state["author_email"] = author_email
 
     try:
         cfde = CfdeClient(no_browser=no_browser, force=force_login,
                           service_instance=service_instance)
-        start_res = cfde.start_deriva_flow(data_path, catalog_id=catalog, schema=schema,
+        start_res = cfde.start_deriva_flow(data_path, author_email, catalog_id=catalog,
+                                           schema=schema, dataset_acls=dataset_acls,
                                            output_dir=output_dir, delete_dir=delete_dir,
                                            handle_git_repos=(not ignore_git),
                                            server=server, dry_run=dry_run,
@@ -58,8 +98,10 @@ def run(data_path, catalog, schema, output_dir, delete_dir, ignore_git, dry_run,
             print("Error during Flow startup: {}".format(start_res["error"]))
         else:
             if not dry_run:
+                state["flow_id"] = start_res["flow_id"]
+                state["flow_instance_id"] = start_res["flow_instance_id"]
                 with open(client_state_file, 'w') as out:
-                    json.dump(start_res, out)
+                    json.dump(state, out)
             print(start_res["message"])
 
 
@@ -89,4 +131,5 @@ def status(flow_id=None, flow_instance_id=None, client_state_file=None):
         print("Error checking status for Flow '{}': {}".format(flow_id, str(e)))
         return
     else:
-        print(status_res["clean_status"])
+        print(status_res)
+        #print(status_res["clean_status"])
