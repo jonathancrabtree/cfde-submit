@@ -98,6 +98,7 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
             print("Error during Flow startup: {}".format(start_res["error"]))
         else:
             if not dry_run:
+                state["service_instance"] = service_instance
                 state["flow_id"] = start_res["flow_id"]
                 state["flow_instance_id"] = start_res["flow_instance_id"]
                 with open(client_state_file, 'w') as out:
@@ -108,8 +109,9 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
 @cli.command()
 @click.option("--flow-id", default=None, show_default=True)
 @click.option("--flow-instance-id", default=None, show_default=True)
+@click.option("--raw", is_flag=True, default=False)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
-def status(flow_id=None, flow_instance_id=None, client_state_file=None):
+def status(flow_id, flow_instance_id, raw, client_state_file):
     """Check the status of a Flow."""
     if not flow_id or not flow_instance_id:
         if not client_state_file:
@@ -119,17 +121,24 @@ def status(flow_id=None, flow_instance_id=None, client_state_file=None):
                 client_state = json.load(f)
             flow_id = flow_id or client_state.get("flow_id")
             flow_instance_id = flow_instance_id or client_state.get("flow_instance_id")
+            service_instance = client_state.get("service_instance")
             if not flow_id or not flow_instance_id:
                 raise ValueError("flow_id or flow_instance_id not found")
         except (FileNotFoundError, ValueError):
             print("Flow not started and flow-id or flow-instance-id not specified")
             return
     try:
-        cfde = CfdeClient()
+        cfde = CfdeClient(service_instance=service_instance)
         status_res = cfde.check_status(flow_id, flow_instance_id, raw=True)
     except Exception as e:
-        print("Error checking status for Flow '{}': {}".format(flow_id, str(e)))
+        if raw:
+            err = repr(e)
+        else:
+            err = str(e)
+        print("Error checking status for Flow '{}': {}".format(flow_id, err))
         return
     else:
-        print(status_res)
-        #print(status_res["clean_status"])
+        if raw:
+            print(json.dumps(status_res, indent=4, sort_keys=True))
+        else:
+            print(status_res["clean_status"])

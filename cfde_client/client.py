@@ -2,6 +2,9 @@ import os
 from packaging.version import parse as parse_version
 import shutil
 
+import time
+from random import randint
+
 from bdbag import bdbag_api
 from datapackage import Package
 from fair_research_login import NativeClient
@@ -139,6 +142,7 @@ class CfdeClient():
                                                     authorizer=automate_authorizer)
         self.last_flow_run = {}
         # Fetch dynamic config info
+        self.service_instance = kwargs.get("service_instance") or "prod"
         try:
             dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINK"])
             if dconf_res.status_code >= 300:
@@ -146,19 +150,17 @@ class CfdeClient():
                                  .format(dconf_res.status_code, dconf_res.content))
             dconf = dconf_res.json()
             self.catalogs = dconf["CATALOGS"]
-            self.flows = dconf["FLOWS"]
+            self.flow_info = dconf["FLOWS"][self.service_instance]
+        except KeyError as e:
+            raise ValueError("Flow configuration for service_instance '{}' not found"
+                             .format(self.service_instance)) from e
         except Exception:
-            # TODO: Should there be any better error-handling here, or is the exception acceptable?
+            # TODO: Are there other exceptions that need to be handled?
             raise
         # Verify client version is compatible with service
         if parse_version(dconf["MIN_VERSION"]) > parse_version(VERSION):
             raise RuntimeError("This CFDE Client is not up to date and can no longer make "
                                "submissions. Please update the client and try again.")
-        self.service_instance = kwargs.get("service_instance") or "prod"
-        # Verify service instance is valid
-        if self.service_instance not in self.flows.keys():
-            raise ValueError("Flow configuration for service_instance '{}' not found"
-                             .format(self.service_instance))
 
     @property
     def version(self):
@@ -317,7 +319,7 @@ class CfdeClient():
         local_endpoint = globus_sdk.LocalGlobusConnectPersonal().endpoint_id
         if local_endpoint and not force_http:
             # Populate Transfer fields in Flow
-            flow_id = self.flows[self.service_instance]
+            flow_id = self.flow_info["flow_id"]
             flow_input = {
                 "source_endpoint_id": local_endpoint,
                 "source_path": data_path,
@@ -355,7 +357,7 @@ class CfdeClient():
                               .format(put_res.status_code, put_res.content))
                 }
 
-            flow_id = self.flows[self.service_instance]
+            flow_id = self.flow_info["flow_id"]
             flow_input = {
                 "source_endpoint_id": False,
                 "data_url": data_url,
@@ -370,6 +372,10 @@ class CfdeClient():
         # Get Flow scope
         flow_def = self.flow_client.get_flow(flow_id)
         flow_scope = flow_def["globus_auth_scope"]
+        # TODO: After Automate allows Flows to read their own IDs, remove this
+        # Random ID to use for User Option AP - requires unique ID
+        # Time + 100-range randint should be more than enough
+        flow_input["task_id"] = str(int(time.time())) + "X" + str(randint(0, 99))
         # Start Flow
         flow_res = self.flow_client.run_flow(flow_id, flow_scope, flow_input)
         self.last_flow_run = {
@@ -407,8 +413,6 @@ class CfdeClient():
         flow_def = self.flow_client.get_flow(flow_id)
         flow_status = self.flow_client.flow_action_status(flow_id, flow_def["globus_auth_scope"],
                                                           flow_instance_id).data
-        #TODO: Remove this - testing only
-        return flow_status
 
         # Create user-friendly version of status message
         STATE_MSGS = CONFIG["STATE_MSGS"]
@@ -422,34 +426,25 @@ class CfdeClient():
                                  .format(flow_status["details"]["details"]["state_name"]))
             if flow_status["details"]["details"].get("cause"):
                 clean_status += "Error: {}\n".format(flow_status["details"]["details"]["cause"])
-        # TransferResult
-        if flow_status["details"].get("output", {}).get("TransferResult"):
-            transfer_status = flow_status["details"]["output"]["TransferResult"]["status"]
-            transfer_result = flow_status["details"]["output"]["TransferResult"]["details"]
-            clean_status += "The Globus Transfer {}.\n".format(STATE_MSGS[transfer_status])
-            if transfer_result["status"] == "SUCCEEDED":
-                clean_status += ("\t{} bytes were transferred.\n"
-                                 .format(transfer_result["bytes_transferred"]))
-            elif transfer_result["status"] == "FAILED":
-                clean_status += ("\tError: {}\n"
-                                 .format(transfer_result["fatal_error"]
-                                         or transfer_result["nice_status"]
-                                         or transfer_result["canceled_by_admin_message"]
-                                         or ("Unknown error on task '{}'"
-                                             .format(transfer_result["task_id"]))))
-        # DerivaResult
-        if flow_status["details"].get("output", {}).get("DerivaResult"):
-            deriva_status = flow_status["details"]["output"]["DerivaResult"]["status"]
-            deriva_result = flow_status["details"]["output"]["DerivaResult"]["details"]
-            clean_status += "The DERIVA ingest {}.\n".format(STATE_MSGS[deriva_status])
-            if deriva_result.get("error"):
-                clean_status += "\tError: {}\n".format(deriva_result["error"])
-            if deriva_result.get("message"):
-                clean_status += "\t{}\n".format(deriva_result["message"])
-            if deriva_result.get("deriva_link"):
-                clean_status += "\tCatalog ID: {}\n".format(deriva_result["deriva_id"])
-                clean_status += "\tLink to catalog: {}\n".format(deriva_result["deriva_link"])
+        # Too onerous to pull out results of each step (when even available),
+        # also would defeat dynamic config and tie client to Flow.
+        # Instead, print out whatever is provided in `details` if FAILED,
+        # and print out nicely-formatted DERIVA status iff SUCCEEDED
+        if flow_status["status"] == "SUCCEEDED":
+            final_deriva_step = self.flow_info["final_deriva_step"]
+            deriva_result = flow_status["details"]["output"][final_deriva_step]["details"]
+            clean_status += ("Submission Flow succeeded:\nYour catalog ID is {}, and can be "
+                             "viewed at this link: {}".format(deriva_result["deriva_id"],
+                                                              deriva_result["deriva_link"]))
+        elif flow_status["status"] == "FAILED":
+            # Every AP can supply failure messages differently, so unfortunately
+            # printing out the entire details block is the only way to actually get
+            # the error message out.
+            clean_status += ("Submission Flow failed: {}"
+                             .format(flow_status.get("details", "No details available")))
 
+        # Extra newline for cleanliness
+        clean_status += "\n"
         # Return or print status
         if raw:
             return {
