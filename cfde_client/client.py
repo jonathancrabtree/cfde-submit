@@ -414,11 +414,19 @@ class CfdeClient():
         flow_status = self.flow_client.flow_action_status(flow_id, flow_def["globus_auth_scope"],
                                                           flow_instance_id).data
 
-        # Create user-friendly version of status message
-        STATE_MSGS = CONFIG["STATE_MSGS"]
         clean_status = "\nStatus of {} (instance {})\n".format(flow_def["title"], flow_instance_id)
         # Flow overall status
-        clean_status += "This Flow {}.\n".format(STATE_MSGS[flow_status["status"]])
+        # NOTE: Automate Flows do NOT fail automatically if an Action fails.
+        #       Any "FAILED" Flow has an error in the Flow itself.
+        #       Therefore, "SUCCEEDED" Flows are not guaranteed to have actually succeeded.
+        if flow_status["status"] == "ACTIVE":
+            clean_status += "This Flow is still in progress.\n"
+        elif flow_status["status"] == "INACTIVE":
+            clean_status += "This Flow has stalled, and may need help to resume.\n"
+        elif flow_status["status"] == "SUCCEEDED":
+            clean_status += "This Flow has completed.\n"
+        elif flow_status["status"] == "FAILED":
+            clean_status += "This Flow has failed.\n"
         # "Details"
         if flow_status["details"].get("details"):
             if flow_status["details"]["details"].get("state_name"):
@@ -428,16 +436,26 @@ class CfdeClient():
                 clean_status += "Error: {}\n".format(flow_status["details"]["details"]["cause"])
         # Too onerous to pull out results of each step (when even available),
         # also would defeat dynamic config and tie client to Flow.
-        # Instead, print out whatever is provided in `details` if FAILED,
-        # and print out nicely-formatted DERIVA status iff SUCCEEDED
+        # Instead, print out whatever is provided in `details` if Flow FAILED,
+        # or print out the appropriate field(s) for the "SUCCEEDED" Flow.
         if flow_status["status"] == "SUCCEEDED":
-            final_deriva_step = self.flow_info["final_deriva_step"]
-            deriva_result = flow_status["details"]["output"][final_deriva_step]["details"]
-            clean_status += ("Submission Flow succeeded:\nYour catalog ID is {}, and can be "
-                             "viewed at this link: {}".format(deriva_result["deriva_id"],
-                                                              deriva_result["deriva_link"]))
+            flow_output = flow_status["details"]["output"]
+            # Each Step is only present in exactly one "SUCCEEDED" Flow result,
+            # and they are mutually exclusive
+            success_step = self.flow_info["success_step"]
+            failure_step = self.flow_info["failure_step"]
+            error_step = self.flow_info["error_step"]
+            if success_step in flow_output.keys():
+                clean_status += flow_output[success_step]["details"]["message"]
+            elif failure_step in flow_output.keys():
+                clean_status += flow_output[failure_step]["details"]["error"]
+            elif error_step in flow_output.keys():
+                clean_status += flow_output[error_step]["details"]["error"]
+            else:
+                clean_status += ("Submission errored: The Flow has finished, but no final "
+                                 "details are available.")
         elif flow_status["status"] == "FAILED":
-            # Every AP can supply failure messages differently, so unfortunately
+            # Every Flow step can supply failure messages differently, so unfortunately
             # printing out the entire details block is the only way to actually get
             # the error message out.
             clean_status += ("Submission Flow failed: {}"
