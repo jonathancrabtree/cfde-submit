@@ -22,7 +22,7 @@ CONFIG = {
     "EP_DIR": "/public/CFDE/metadata/",
     "EP_URL": "https://317ec.36fe.dn.glob.us",
     # Format for BDBag archives
-    "ARCHIVE_FORMAT": "tgz"
+    "ARCHIVE_FORMAT": "zip"
 }
 # Add all necessary scopes together for Auth call
 CONFIG["ALL_SCOPES"] = CONFIG["AUTOMATE_SCOPES"] + [CONFIG["HTTPS_SCOPE"]]
