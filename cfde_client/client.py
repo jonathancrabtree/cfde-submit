@@ -1,3 +1,4 @@
+import json
 import os
 from packaging.version import parse as parse_version
 import shutil
@@ -444,8 +445,21 @@ class CfdeClient():
             if flow_status["details"]["details"].get("state_name"):
                 clean_status += ("Current Flow Step: {}"
                                  .format(flow_status["details"]["details"]["state_name"]))
+            # "cause" indicates a failure mode
             if flow_status["details"]["details"].get("cause"):
-                clean_status += "Error: {}\n".format(flow_status["details"]["details"]["cause"])
+                cause = flow_status["details"]["details"]["cause"]
+                # Try to pretty-print massive blob of state
+                try:
+                    str_cause, dict_cause = cause.split(" '{")
+                    dict_cause = "{" + dict_cause.strip("'")
+                    dict_cause = json.loads(dict_cause)["UserState"]
+                    dict_cause.pop("prevars", None)
+                    dict_cause.pop("vars", None)
+                    dict_cause = json.dumps(dict_cause, indent=4, sort_keys=True)
+                    cause = str_cause + "\n" + dict_cause
+                except Exception:
+                    raise
+                clean_status += "Error: {}\n".format(cause)
         # Too onerous to pull out results of each step (when even available),
         # also would defeat dynamic config and tie client to Flow.
         # Instead, print out whatever is provided in `details` if Flow FAILED,
@@ -470,8 +484,17 @@ class CfdeClient():
             # Every Flow step can supply failure messages differently, so unfortunately
             # printing out the entire details block is the only way to actually get
             # the error message out.
-            clean_status += ("Submission Flow failed: {}"
-                             .format(flow_status.get("details", "No details available")))
+            # "cause" is printed earlier when available, so avoid double-printing it
+            if flow_status["details"].get("details", {}).get("cause"):
+                clean_status += "Submission Flow failed."
+            else:
+                details = flow_status.get("details", "No details available")
+                # Try to pretty-print JSON blob
+                try:
+                    details = json.dumps(details, indent=4, sort_keys=True)
+                except Exception:
+                    pass
+                clean_status += "Submission Flow failed: {}".format(details)
 
         # Extra newline for cleanliness
         clean_status += "\n"
