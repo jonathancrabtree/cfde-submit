@@ -377,7 +377,19 @@ class CfdeClient():
         # Time + 100-range randint should be more than enough
         flow_input["task_id"] = str(int(time.time())) + "X" + str(randint(0, 99))
         # Start Flow
-        flow_res = self.flow_client.run_flow(flow_id, flow_scope, flow_input)
+        try:
+            flow_res = self.flow_client.run_flow(flow_id, flow_scope, flow_input)
+        except globus_sdk.GlobusAPIError as e:
+            if e.http_status == 404:
+                return {
+                    "success": False,
+                    "error": ("Could not access ingest Flow. Are you in the CFDE DERIVA "
+                              "Demo Globus Group? Check your membership or apply for access "
+                              "here: https://app.globus.org/groups/a437abe3-c9a4-11e9-b441-"
+                              "0efb3ba9a670/about")
+                }
+            else:
+                raise
         self.last_flow_run = {
             "flow_id": flow_id,
             "flow_instance_id": flow_res["action_id"]

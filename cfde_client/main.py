@@ -91,7 +91,7 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
                                            server=server, dry_run=dry_run,
                                            force_http=force_http, **bag_kwargs)
     except Exception as e:
-        print("Error while starting Flow: {}".format(str(e)))
+        print("Error while starting Flow: {}".format(repr(e)))
         return
     else:
         if not start_res["success"]:
