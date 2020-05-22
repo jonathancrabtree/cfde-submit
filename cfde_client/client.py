@@ -357,6 +357,13 @@ class CfdeClient():
                     "error": ("Could not upload BDBag to server (error {}):\n{}"
                               .format(put_res.status_code, put_res.content))
                 }
+            elif put_res.status_code != 200:
+                print("HTTP upload returned status code {}.".format(put_res.status_code))
+
+            #TODO: Make these a verbose flag
+            print("Upload results:")
+            print("Status code", put_res.status_code)
+            print("Content returned:", put_res.content)
 
             flow_id = self.flow_info["flow_id"]
             flow_input = {
