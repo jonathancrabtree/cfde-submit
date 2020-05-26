@@ -170,7 +170,7 @@ class CfdeClient():
     def start_deriva_flow(self, data_path, author_email, catalog_id=None,
                           schema=None, server=None, dataset_acls=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
-                          dry_run=False, **kwargs):
+                          dry_run=False, verbose=False, **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
 
         Arguments:
@@ -209,6 +209,8 @@ class CfdeClient():
                     When True, does not ingest into DERIVA or start the Globus Automate Flow,
                     and the return value will not have valid DERIVA Flow information.
                     Default False.
+            verbose (bool): Should intermediate status messages be printed out?
+                    Default False.
 
         Keyword Arguments:
             force_http (bool): Should the data be sent using HTTP instead of Globus Transfer,
@@ -219,6 +221,8 @@ class CfdeClient():
         Other keyword arguments are passed directly to the ``make_bag()`` function of the
         BDBag API (see https://github.com/fair-research/bdbag for details).
         """
+        if verbose:
+            print("Startup: Validating input")
         data_path = os.path.abspath(data_path)
         if not os.path.exists(data_path):
             raise FileNotFoundError("Path '{}' does not exist".format(data_path))
@@ -233,17 +237,22 @@ class CfdeClient():
         force_http = kwargs.pop("force_http", False)
 
         if handle_git_repos:
+            if verbose:
+                print("Checking for a Git repository")
             # If Git repo, set output_dir appropriately
             try:
                 repo = git.Repo(data_path, search_parent_directories=True)
             # Not Git repo
             except git.InvalidGitRepositoryError:
-                pass
+                if verbose:
+                    print("Not a Git repo")
             # Path not found, turn into standard FileNotFoundError
             except git.NoSuchPathError:
                 raise FileNotFoundError("Path '{}' does not exist".format(data_path))
             # Is Git repo
             else:
+                if verbose:
+                    print("Git repo found, collecting metadata")
                 # Needs to not have slash at end - is known Git repo already, slash
                 # interferes with os.path.basename/dirname
                 if data_path.endswith("/"):
@@ -256,8 +265,12 @@ class CfdeClient():
 
         # If dir and not already BDBag, make BDBag
         if os.path.isdir(data_path) and not bdbag_api.is_bag(data_path):
+            if verbose:
+                print("Creating BDBag out of directory '{}'".format(data_path))
             # If output_dir specified, copy data to output dir first
             if output_dir:
+                if verbose:
+                    print("Copying data to '{}' before creating BDBag".format(output_dir))
                 output_dir = os.path.abspath(output_dir)
                 # If shutil.copytree is called when the destination dir is inside the source dir
                 # by more than one layer, it will recurse infinitely.
@@ -284,17 +297,28 @@ class CfdeClient():
             bdbag_api.make_bag(data_path, **kwargs)
             if not bdbag_api.is_bag(data_path):
                 raise ValueError("Failed to create BDBag from {}".format(data_path))
+            elif verbose:
+                print("BDBag created at '{}'".format(data_path))
 
         # If dir (must be BDBag at this point), archive
         if os.path.isdir(data_path):
+            if verbose:
+                print("Archiving BDBag at '{}' using '{}'"
+                      .format(data_path, CONFIG["ARCHIVE_FORMAT"]))
             new_data_path = bdbag_api.archive_bag(data_path, CONFIG["ARCHIVE_FORMAT"])
+            if verbose:
+                print("BDBag archived to file '{}'".format(new_data_path))
             # If requested (e.g. Git repo copied dir), delete data dir
             if delete_dir:
+                if verbose:
+                    print("Removing old directory '{}'".format(data_path))
                 shutil.rmtree(data_path)
             # Overwrite data_path - don't care about dir for uploading
             data_path = new_data_path
 
         # Validate TableSchema in BDBag
+        if verbose:
+            print("Validating TableSchema in BDBag '{}'".format(data_path))
         validation_res = ts_validate(data_path, schema=schema)
         if not validation_res["is_valid"]:
             return {
@@ -302,6 +326,8 @@ class CfdeClient():
                 "error": ("TableSchema invalid due to the following errors: \n{}\n"
                           .format(validation_res["error"]))
             }
+        elif verbose:
+            print("Validation successful")
 
         # Now BDBag is archived file
         # Set path on destination (FAIR RE EP)
@@ -315,10 +341,14 @@ class CfdeClient():
             }
 
         # Set up Flow
+        if verbose:
+            print("Creating input for Flow")
         # If local EP exists (and not force_http), can use Transfer
         # Local EP fetched now in case GCP started after Client creation
         local_endpoint = globus_sdk.LocalGlobusConnectPersonal().endpoint_id
         if local_endpoint and not force_http:
+            if verbose:
+                print("Using local Globus Connect Personal Endpoint '{}'".format(local_endpoint))
             # Populate Transfer fields in Flow
             flow_id = self.flow_info["flow_id"]
             flow_input = {
@@ -335,6 +365,8 @@ class CfdeClient():
                 flow_input["server"] = server
         # Otherwise, we must PUT the BDBag on the FAIR RE EP
         else:
+            if verbose:
+                print("No Globus Endpoint detected; using HTTP upload instead")
             headers = {}
             self.__https_authorizer.set_authorization_header(headers)
             data_url = "{}{}".format(CONFIG["EP_URL"], dest_path)
@@ -358,12 +390,11 @@ class CfdeClient():
                               .format(put_res.status_code, put_res.content))
                 }
             elif put_res.status_code != 200:
-                print("HTTP upload returned status code {}.".format(put_res.status_code))
+                print("Warning: HTTP upload returned status code {}, which was unexpected."
+                      .format(put_res.status_code))
 
-            #TODO: Make these a verbose flag
-            print("Upload results:")
-            print("Status code", put_res.status_code)
-            print("Content returned:", put_res.content)
+            if verbose:
+                print("Upload successful: {} {}".format(put_res.status_code, put_res.content))
 
             flow_id = self.flow_info["flow_id"]
             flow_input = {
@@ -377,6 +408,9 @@ class CfdeClient():
             if server:
                 flow_input["server"] = server
 
+        if verbose:
+            print("Flow input populated:\n{}".format(json.dumps(flow_input, indent=4,
+                                                                sort_keys=True)))
         # Get Flow scope
         flow_def = self.flow_client.get_flow(flow_id)
         flow_scope = flow_def["globus_auth_scope"]
@@ -385,6 +419,8 @@ class CfdeClient():
         # Time + 100-range randint should be more than enough
         flow_input["task_id"] = str(int(time.time())) + "X" + str(randint(0, 99))
         # Start Flow
+        if verbose:
+            print("Starting Flow - Submitting data")
         try:
             flow_res = self.flow_client.run_flow(flow_id, flow_scope, flow_input)
         except globus_sdk.GlobusAPIError as e:
@@ -402,6 +438,8 @@ class CfdeClient():
             "flow_id": flow_id,
             "flow_instance_id": flow_res["action_id"]
         }
+        if verbose:
+            print("Flow started successfully.")
 
         return {
             "success": True,

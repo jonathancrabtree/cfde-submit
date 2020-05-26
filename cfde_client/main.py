@@ -25,6 +25,7 @@ def cli():
 @click.option("--delete-dir/--keep-dir", is_flag=True, default=False, show_default=True)
 @click.option("--ignore-git/--handle-git", is_flag=True, default=False, show_default=True)
 @click.option("--dry-run", is_flag=True, default=False, show_default=True)
+@click.option("--verbose", "-v", is_flag=True, default=False, show_default=True)
 @click.option("--force-login", is_flag=True, default=False, show_default=True)
 # TODO: Debug "hidden" missing parameter
 @click.option("--no_browser", is_flag=True, default=False)  # , hidden=True)
@@ -34,8 +35,8 @@ def cli():
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--service-instance", default=None)  # , hidden=True)
 def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
-        dry_run, force_login, no_browser, server, force_http, bag_kwargs_file, client_state_file,
-        service_instance):
+        dry_run, verbose, force_login, no_browser, server, force_http,
+        bag_kwargs_file, client_state_file, service_instance):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
     # Get any saved parameters
     if not client_state_file:
@@ -43,8 +44,12 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
     try:
         with open(client_state_file) as f:
             state = json.load(f)
+        if verbose:
+            print("Loaded previous state")
     except FileNotFoundError:
         state = {}
+        if verbose:
+            print("No previous state found")
 
     # Read bag_kwargs_file if provided
     if bag_kwargs_file:
@@ -60,11 +65,15 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
         dataset_acls = None
 
     # Determine author_email to use
+    if verbose:
+        print("Determining author email")
     # If user supplies email as option, will always use that as author_email
     state_email = state.get("author_email")
     # If supplied email is different from previously saved email, prompt to save
     # Do not prompt if user has not saved email - user may not want to save email
     if author_email is not None and state_email is not None and state_email != author_email:
+        if verbose:
+            print("Saved email mismatch with provided email")
         # author_email = author_email
         save_email = (input("Would you like to save '{}' as your default email ("
                             "instead of '{}')? y/n: ".format(author_email, state_email))
@@ -74,21 +83,29 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
         save_email = False
         print("Using saved email '{}'".format(author_email))
     elif author_email is None and state_email is None:
+        if verbose:
+            print("No saved email found and no email provided")
         author_email = input("Please enter your email address for curation and updates: ").strip()
         save_email = input("Thank you. Would you like to save '{}' for future submissions? "
                            "y/n: ".format(author_email)).strip().lower() in ["y", "yes"]
     # Save email in state if requested
     if save_email:
         state["author_email"] = author_email
+        if verbose:
+            print("Email '{}' will be saved if the Flow initialization is successful "
+                  "and this is not a dry run"
+                  .format(author_email))
 
     try:
+        if verbose:
+            print("Initializing Flow")
         cfde = CfdeClient(no_browser=no_browser, force=force_login,
                           service_instance=service_instance)
         start_res = cfde.start_deriva_flow(data_path, author_email, catalog_id=catalog,
                                            schema=schema, dataset_acls=dataset_acls,
                                            output_dir=output_dir, delete_dir=delete_dir,
                                            handle_git_repos=(not ignore_git),
-                                           server=server, dry_run=dry_run,
+                                           server=server, dry_run=dry_run, verbose=verbose,
                                            force_http=force_http, **bag_kwargs)
     except Exception as e:
         print("Error while starting Flow: {}".format(repr(e)))
@@ -103,6 +120,8 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
                 state["flow_instance_id"] = start_res["flow_instance_id"]
                 with open(client_state_file, 'w') as out:
                     json.dump(state, out)
+                if verbose:
+                    print("State saved to '{}'".format(client_state_file))
             print(start_res["message"])
 
 
