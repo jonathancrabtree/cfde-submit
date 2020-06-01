@@ -19,7 +19,7 @@ This tool can ingest any of the following into DERIVA:
 4. A premade BDBag in an archive file
 
 ### Command line
-There are two commands available: `run` and `status`. Use them as follows:
+There are four commands available: `run`, `status`, `login`, and `logout`. Use them as follows:
 
 - `cfde run DATA-PATH` will ingest the data found at `DATA-PATH` into DERIVA. You can also specify the following options:
     - `--catalog-id=CATALOG_ID` will ingest into an existing catalog instead of creating a new catalog.
@@ -30,6 +30,10 @@ There are two commands available: `run` and `status`. Use them as follows:
 - `cfde status` will check the status of a Flow instance. By default, the last run Flow is used, but if you want to check a previous Flow you can provide one or both of the following options:
     - `--flow-id=ID` is the ID of the Flow itself (NOT a specific instance of the Flow).
     - `--flow-instance-id=ID` is the ID of the particular instance/invocation of the Flow you want to check.
+
+- `cfde login` will start the login process. If you have tokens saved from a previous login, this command will validate those tokens and only re-authenticate you if they are expired. It is not necessary to run this command before `run` or `status`, because those commands will also authenticate you if needed.
+
+- `cfde logout` will log you out and revoke any valid cached tokens.
 
 
 ### Python API

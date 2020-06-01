@@ -1,5 +1,7 @@
+from io import StringIO
 import json
 import os
+import sys
 
 import click
 
@@ -161,3 +163,51 @@ def status(flow_id, flow_instance_id, raw, client_state_file):
             print(json.dumps(status_res, indent=4, sort_keys=True))
         else:
             print(status_res["clean_status"])
+
+
+@cli.command()
+@click.option("--force-login", is_flag=True, default=False, show_default=True)
+@click.option("--no_browser", is_flag=True, default=False)
+def login(force_login, no_browser):
+    """Perform the login step (which saves credentials) by initializing
+    a CfdeClient. The Client is then discarded.
+    """
+    print("Starting login check")
+    CfdeClient(no_browser=no_browser, force=force_login)
+    print("You are authenticated and your tokens have been cached.")
+
+
+@cli.command()
+def logout():
+    """Log out and revoke your tokens."""
+    print("Logging out and revoking tokens")
+    # Messing with the tokens outside of the CfdeClient seems like an error-prone idea.
+    # However, we don't have a Client instantiated here to log out with.
+    # So, we're going to attempt to create one.
+    try:
+        # We'll suppress stdout, so the user isn't actually prompted to log in,
+        # and prepare an invalid prompt response in stdin.
+        old_stdin = sys.stdin
+        new_stdin = StringIO("\n")
+        sys.stdin = new_stdin
+        # If the auth flow fires, it will read the invalid response and raise an exception,
+        # which indicates that there are no valid existing tokens,
+        # so the user is already logged out.
+        old_stdout = sys.stdout
+        with open(os.devnull, 'w') as new_stdout:
+            sys.stdout = new_stdout
+            client = CfdeClient(no_browser=True)
+        # Otherwise, if the Client initializes without an auth step, we must actually logout.
+        client.logout()
+    except Exception as e:
+        # If this is an invalid grant error, there are no valid existing tokens,
+        # so we can eat the exception
+        if len(e.args) >= 3 and e.args[2] == "invalid_grant":
+            pass
+        # Else, the exception was unexpected
+        else:
+            raise
+    finally:
+        sys.stdout = old_stdout
+        sys.stdin = old_stdin
+    print("You are logged out.")

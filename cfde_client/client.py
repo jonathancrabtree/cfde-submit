@@ -120,8 +120,7 @@ class CfdeClient():
             refresh_tokens (bool): Use Globus Refresh Tokens to extend login time.
                     **Default**: ``True``.
             force (bool): Force a login flow, even if loaded tokens are valid.
-                    Same effect as ``clear_old_tokens``. If one of these is ``True``, the effect
-                    triggers. **Default**: ``False``.
+                    **Default**: ``False``.
             service_instance (str): The instance of the Globus Automate Flow
                     and/or the DERIVA ingest Action Provider to use. Unless directed otherwise,
                     this should be left to the default. **Default**: ``prod``.
@@ -129,6 +128,7 @@ class CfdeClient():
         self.__native_client = NativeClient(client_id=self.client_id, app_name=self.app_name)
         self.__native_client.login(requested_scopes=CONFIG["ALL_SCOPES"],
                                    no_browser=kwargs.get("no_browser", False),
+                                   no_local_server=kwargs.get("no_browser", False),
                                    refresh_tokens=kwargs.get("refresh_tokens", True),
                                    force=kwargs.get("force", False))
         tokens = self.__native_client.load_tokens_by_scope()
@@ -166,6 +166,13 @@ class CfdeClient():
     @property
     def version(self):
         return VERSION
+
+    def logout(self):
+        """Log out and revoke this client's tokens. This object will no longer
+        be usable; to submit additional data or check the status of previous submissions,
+        you must create a new CfdeClient.
+        """
+        self.__native_client.logout()
 
     def start_deriva_flow(self, data_path, author_email, catalog_id=None,
                           schema=None, server=None, dataset_acls=None,
