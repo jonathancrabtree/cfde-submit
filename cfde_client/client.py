@@ -162,6 +162,18 @@ class CfdeClient():
         if parse_version(dconf["MIN_VERSION"]) > parse_version(VERSION):
             raise RuntimeError("This CFDE Client is not up to date and can no longer make "
                                "submissions. Please update the client and try again.")
+        # Verify user has permission to view Flow
+        try:
+            self.flow_client.get_flow(self.flow_info["flow_id"])
+        except globus_sdk.GlobusAPIError as e:
+            if e.http_status == 404:
+                raise PermissionError(
+                            "Unable to view ingest Flow. Are you in the CFDE DERIVA "
+                            "Demo Globus Group? Check your membership or apply for access "
+                            "here: https://app.globus.org/groups/a437abe3-c9a4-11e9-b441-"
+                            "0efb3ba9a670/about")
+            else:
+                raise
 
     @property
     def version(self):
