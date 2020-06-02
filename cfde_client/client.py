@@ -413,7 +413,8 @@ class CfdeClient():
                       .format(put_res.status_code))
 
             if verbose:
-                print("Upload successful: {} {}".format(put_res.status_code, put_res.content))
+                print("Upload successful to '{}': {} {}".format(data_url, put_res.status_code,
+                                                                put_res.content))
 
             flow_id = self.flow_info["flow_id"]
             flow_input = {
@@ -465,7 +466,8 @@ class CfdeClient():
             "message": ("Started DERIVA ingest Flow\nFlow ID: {}\nFlow Instance ID: {}"
                         .format(flow_id, flow_res["action_id"])),
             "flow_id": flow_id,
-            "flow_instance_id": flow_res["action_id"]
+            "flow_instance_id": flow_res["action_id"],
+            "fair_re_dest_path": dest_path
         }
 
     def check_status(self, flow_id=None, flow_instance_id=None, raw=False):

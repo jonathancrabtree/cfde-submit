@@ -5,7 +5,7 @@ import sys
 
 import click
 
-from cfde_client import CfdeClient
+from cfde_client import CfdeClient, CONFIG
 
 
 DEFAULT_STATE_FILE = os.path.expanduser("~/.cfde_client.json")
@@ -116,15 +116,27 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
         if not start_res["success"]:
             print("Error during Flow startup: {}".format(start_res["error"]))
         else:
+            print(start_res["message"])
             if not dry_run:
+                dest_path = start_res["fair_re_dest_path"]
+                dir_path = os.path.dirname(dest_path)
+                filename = os.path.basename(dest_path)
+                http_link = "{}{}".format(CONFIG["EP_URL"], dest_path)
+                globus_web_link = ("https://app.globus.org/file-manager?origin_id={}"
+                                   "&origin_path={}".format(CONFIG["EP_UUID"], dir_path))
                 state["service_instance"] = service_instance
                 state["flow_id"] = start_res["flow_id"]
                 state["flow_instance_id"] = start_res["flow_instance_id"]
+                state["http_link"] = http_link
+                state["globus_web_link"] = globus_web_link
                 with open(client_state_file, 'w') as out:
                     json.dump(state, out)
                 if verbose:
                     print("State saved to '{}'".format(client_state_file))
-            print(start_res["message"])
+                print("\nThe BDBag with your data is named '{}', and is available through Globus "
+                      "here:\n{}\n".format(filename, globus_web_link))
+                print("You BDBag is also available via direct HTTP download here:\n{}"
+                      .format(http_link))
 
 
 @cli.command()

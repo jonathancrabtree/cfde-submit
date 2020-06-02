@@ -20,6 +20,7 @@ CONFIG = {
     "AUTOMATE_SCOPES": list(globus_automate_client.flows_client.ALL_FLOW_SCOPES),
     # FAIR Research Endpoint destination directory and HTTPS URL
     "EP_DIR": "/public/CFDE/metadata/",
+    "EP_UUID": "0e57d793-f1ac-4eeb-a30f-643b082d68ec",
     "EP_URL": "https://317ec.36fe.dn.glob.us",
     # Format for BDBag archives
     "ARCHIVE_FORMAT": "zip"
