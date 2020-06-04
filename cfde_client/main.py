@@ -168,7 +168,7 @@ def status(flow_id, flow_instance_id, raw, client_state_file):
             err = repr(e)
         else:
             err = str(e)
-        print("Error checking status for Flow '{}': {}".format(flow_id, err))
+        print("Error checking status for Flow '{}': {}".format(flow_instance_id, err))
         return
     else:
         if raw:

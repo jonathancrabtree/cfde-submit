@@ -72,12 +72,12 @@ def ts_validate(data_path, schema=None):
 
     # Read into Package, return error on failure
     try:
-        pkg = Package(data_path)
+        pkg = Package(descriptor=data_path, strict=True)
     except Exception as e:
         return {
             "is_valid": False,
-            "raw_errors": [e],
-            "error": str(e)
+            "raw_errors": e.errors,
+            "error": e.errors
         }
 
     if schema:
@@ -524,7 +524,7 @@ class CfdeClient():
                     dict_cause = json.dumps(dict_cause, indent=4, sort_keys=True)
                     cause = str_cause + "\n" + dict_cause
                 except Exception:
-                    raise
+                    pass
                 clean_status += "Error: {}\n".format(cause)
         # Too onerous to pull out results of each step (when even available),
         # also would defeat dynamic config and tie client to Flow.
