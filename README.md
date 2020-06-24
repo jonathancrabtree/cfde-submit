@@ -4,9 +4,11 @@ This is a client to interact with the Globus Automate Flows for CFDE use cases. 
 
 # Installation
 
+The CFDE Client requires Python 3.6 or later. To check which version of Python you have, run `python --version`. If you have both Python 2 and Python 3 installed, you may need to check with `python3 --version`. If this is the case, you will also need to use `pip3` instead of `pip` below.
+
 ```
-git clone https://github.com/fair-research/deriva-action-provider.git
-cd deriva-action-provider/cfde_client
+git clone https://github.com/fair-research/deriva-flow-client.git
+cd deriva-flow-client/cfde_client
 pip install -e .
 ```
 
@@ -17,6 +19,9 @@ This tool can ingest any of the following into DERIVA:
 2. A Git repository to be copied into a BDBag
 3. A premade BDBag directory
 4. A premade BDBag in an archive file
+
+In all cases, the data must already be in CFDE TableSchema format, or the ingest may fail. See instructions here (link to docs pending).
+
 
 ### Command line
 There are four commands available: `run`, `status`, `login`, and `logout`. Use them as follows:
@@ -37,9 +42,10 @@ There are four commands available: `run`, `status`, `login`, and `logout`. Use t
 
 
 ### Python API
-The `cfdeClient` class, once instantiated, has two primary methods:
+The `CfdeClient` class, once instantiated, has the following methods:
 
 - `start_deriva_flow(self, data_path, catalog_id=None, output_dir=None, delete_dir=False, **kwargs)`
-- `check_status(self, flow_id=None, flow_instance_id=None, raw=False)`.
+- `check_status(self, flow_id=None, flow_instance_id=None, raw=False)`
+- `logout(self)`
 
 The arguments operate in the same fashion as the CLI options, and are documented in detail in the method docstrings.
