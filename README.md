@@ -8,7 +8,7 @@ The CFDE Client requires Python 3.6 or later. To check which version of Python y
 
 ```
 git clone https://github.com/fair-research/deriva-flow-client.git
-cd deriva-flow-client/cfde_client
+cd deriva-flow-client
 pip install -e .
 ```
 
