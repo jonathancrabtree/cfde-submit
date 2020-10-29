@@ -3,9 +3,6 @@ import os
 from packaging.version import parse as parse_version
 import shutil
 
-import time
-from random import randint
-
 from bdbag import bdbag_api
 from datapackage import Package
 from fair_research_login import NativeClient
@@ -143,20 +140,33 @@ class CfdeClient():
                                                     authorizer=automate_authorizer)
         self.last_flow_run = {}
         # Fetch dynamic config info
+        # TODO: Fix dynamic config info fetching
+        #       HTTP downloads from the GCSv5.4 HA EP aren't working for some reason
+        #       - always redirected to Auth via Python Requests,
+        #       400 error in browser. In the meantime, hardcode config.
         self.service_instance = kwargs.get("service_instance") or "prod"
         try:
-            dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINK"])
+            '''
+            dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINKS"][self.service_instance])
             if dconf_res.status_code >= 300:
                 raise ValueError("Unable to download required configuration: Error {}: {}"
                                  .format(dconf_res.status_code, dconf_res.content))
             dconf = dconf_res.json()
+            '''
+            dconf = CONFIG["TEMP_HARDCODED_CONFIG"]
             self.catalogs = dconf["CATALOGS"]
             self.flow_info = dconf["FLOWS"][self.service_instance]
         except KeyError as e:
             raise ValueError("Flow configuration for service_instance '{}' not found"
                              .format(self.service_instance)) from e
+        except json.JSONDecodeError:
+            if "<!DOCTYPE html>" in dconf_res.content:
+                raise ValueError("Unable to authenticate with Globus: "
+                                 "HTML authentication flow detected")
+            else:
+                raise ValueError("Flow configuration not JSON: \n{}".format(dconf_res.content))
         except Exception:
-            # TODO: Are there other exceptions that need to be handled?
+            # TODO: Are there other exceptions that need to be handled/translated?
             raise
         # Verify client version is compatible with service
         if parse_version(dconf["MIN_VERSION"]) > parse_version(VERSION):
@@ -186,7 +196,7 @@ class CfdeClient():
         """
         self.__native_client.logout()
 
-    def start_deriva_flow(self, data_path, author_email, catalog_id=None,
+    def start_deriva_flow(self, data_path, catalog_id=None,
                           schema=None, server=None, dataset_acls=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
                           dry_run=False, verbose=False, **kwargs):
@@ -198,9 +208,6 @@ class CfdeClient():
                     2) A Git repository to be copied into a BDBag
                     3) A premade BDBag directory
                     4) A premade BDBag in an archive file
-            author_email (str): The email of the author/submitter of this data.
-                    The author must view and approve the submission, and is then
-                    notified about the status of the submission.
             catalog_id (int or str): The ID of the DERIVA catalog to ingest into.
                     Default None, to create a new catalog.
             schema (str): The named schema or schema file link to validate data against.
@@ -349,7 +356,7 @@ class CfdeClient():
             print("Validation successful")
 
         # Now BDBag is archived file
-        # Set path on destination (FAIR RE EP)
+        # Set path on destination
         dest_path = "{}{}".format(CONFIG["EP_DIR"], os.path.basename(data_path))
 
         # If doing dry run, stop here before making Flow input
@@ -373,16 +380,16 @@ class CfdeClient():
             flow_input = {
                 "source_endpoint_id": local_endpoint,
                 "source_path": data_path,
-                "fair_re_path": dest_path,
+                "cfde_ep_id": self.flow_info["cfde_ep_id"],
+                "cfde_ep_path": dest_path,
                 "is_directory": False,
-                "final_acls": dataset_acls,
-                "author_email": author_email
+                "final_acls": dataset_acls
             }
             if catalog_id:
                 flow_input["catalog_id"] = str(catalog_id)
             if server:
                 flow_input["server"] = server
-        # Otherwise, we must PUT the BDBag on the FAIR RE EP
+        # Otherwise, we must PUT the BDBag on the server
         else:
             if verbose:
                 print("No Globus Endpoint detected; using HTTP upload instead")
@@ -420,8 +427,7 @@ class CfdeClient():
             flow_input = {
                 "source_endpoint_id": False,
                 "data_url": data_url,
-                "final_acls": dataset_acls,
-                "author_email": author_email
+                "final_acls": dataset_acls
             }
             if catalog_id:
                 flow_input["catalog_id"] = str(catalog_id)
@@ -434,10 +440,6 @@ class CfdeClient():
         # Get Flow scope
         flow_def = self.flow_client.get_flow(flow_id)
         flow_scope = flow_def["globus_auth_scope"]
-        # TODO: After Automate allows Flows to read their own IDs, remove this
-        # Random ID to use for User Option AP - requires unique ID
-        # Time + 100-range randint should be more than enough
-        flow_input["task_id"] = str(int(time.time())) + "X" + str(randint(0, 99))
         # Start Flow
         if verbose:
             print("Starting Flow - Submitting data")

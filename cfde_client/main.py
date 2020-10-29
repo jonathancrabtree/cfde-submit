@@ -19,7 +19,6 @@ def cli():
 
 @cli.command()
 @click.argument("data-path", nargs=1, type=click.Path(exists=True))
-@click.option("--author-email", "--email", "-e", default=None)
 @click.option("--catalog", default=None, show_default=True)
 @click.option("--schema", default=None, show_default=True)
 @click.option("--acl-file", default=None, show_default=True, type=click.Path(exists=True))
@@ -36,7 +35,7 @@ def cli():
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--service-instance", default=None)  # , hidden=True)
-def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
+def run(data_path, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
         dry_run, verbose, force_login, no_browser, server, force_http,
         bag_kwargs_file, client_state_file, service_instance):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
@@ -66,6 +65,7 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
     else:
         dataset_acls = None
 
+    '''
     # Determine author_email to use
     if verbose:
         print("Determining author email")
@@ -97,7 +97,7 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
             print("Email '{}' will be saved if the Flow initialization is successful "
                   "and this is not a dry run"
                   .format(author_email))
-
+    '''
     try:
         if verbose:
             print("Initializing Flow")
@@ -105,7 +105,7 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
                           service_instance=service_instance)
         if verbose:
             print("CfdeClient initialized, starting Flow")
-        start_res = cfde.start_deriva_flow(data_path, author_email, catalog_id=catalog,
+        start_res = cfde.start_deriva_flow(data_path, catalog_id=catalog,
                                            schema=schema, dataset_acls=dataset_acls,
                                            output_dir=output_dir, delete_dir=delete_dir,
                                            handle_git_repos=(not ignore_git),
