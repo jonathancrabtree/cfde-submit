@@ -120,25 +120,21 @@ def run(data_path, catalog, schema, acl_file, output_dir, delete_dir, ignore_git
         else:
             print(start_res["message"])
             if not dry_run:
-                dest_path = start_res["fair_re_dest_path"]
-                dir_path = os.path.dirname(dest_path)
-                filename = os.path.basename(dest_path)
-                http_link = "{}{}".format(CONFIG["EP_URL"], dest_path)
-                globus_web_link = ("https://app.globus.org/file-manager?origin_id={}"
-                                   "&origin_path={}".format(CONFIG["EP_UUID"], dir_path))
                 state["service_instance"] = service_instance
                 state["flow_id"] = start_res["flow_id"]
                 state["flow_instance_id"] = start_res["flow_instance_id"]
-                state["http_link"] = http_link
-                state["globus_web_link"] = globus_web_link
+                state["http_link"] = start_res["http_link"]
+                state["globus_web_link"] = start_res["globus_web_link"]
                 with open(client_state_file, 'w') as out:
                     json.dump(state, out)
                 if verbose:
                     print("State saved to '{}'".format(client_state_file))
-                print("\nThe BDBag with your data is named '{}', and is available through Globus "
-                      "here:\n{}\n".format(filename, globus_web_link))
-                print("You BDBag is also available via direct HTTP download here:\n{}"
-                      .format(http_link))
+
+                filename = os.path.basename(start_res["cfde_dest_path"])
+                print("\nThe BDBag with your data is named '{}', and will be available through "
+                      "Globus here:\n{}\n".format(filename, state["globus_web_link"]))
+                print("You BDBag will also be available via direct HTTP download here:\n{}"
+                      .format(state["http_link"]))
 
 
 @cli.command()

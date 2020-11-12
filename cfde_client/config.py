@@ -22,7 +22,7 @@ CONFIG = {
         },
         "FLOWS": {
             "prod": {
-                "flow_id": "751c9d70-96c5-48a1-b0b7-3038a2731946",
+                "flow_id": "",
                 "success_step": "SuccessState",
                 "failure_step": "FailureState",
                 "error_step": "ErrorState"
@@ -34,7 +34,16 @@ CONFIG = {
                 "error_step": "ErrorState"
             },
             "dev": {
-                "flow_id": "751c9d70-96c5-48a1-b0b7-3038a2731946",
+                "flow_id": "ef08993d-2768-4bf5-a98b-9bc261bf9751",
+                # TODO: Enable current endpoint for data transfers when practical
+                # Temporarily use previous development endpoint for data transfers
+                # "cfde_ep_id": "78e2f2f2-1e1d-49e4-a1ef-11552876d517",
+                # "cfde_ep_path": "/CFDE/data/",
+                # "cfde_ep_url": "https://g-6e4a3.f19a4.5898.data.globus.org",
+                "cfde_ep_id": "0e57d793-f1ac-4eeb-a30f-643b082d68ec",
+                "cfde_ep_path": "/public/CFDE/metadata/",
+                "cfde_ep_url": "https://317ec.36fe.dn.glob.us",
+
                 "success_step": "SuccessState",
                 "failure_step": "FailureState",
                 "error_step": "ErrorState"
@@ -52,10 +61,6 @@ CONFIG = {
     # Automate Scopes
     "HTTPS_SCOPE": "https://auth.globus.org/scopes/0e57d793-f1ac-4eeb-a30f-643b082d68ec/https",
     "AUTOMATE_SCOPES": list(globus_automate_client.flows_client.ALL_FLOW_SCOPES),
-    # FAIR Research Endpoint destination directory and HTTPS URL
-    "EP_DIR": "/public/CFDE/metadata/",
-    "EP_UUID": "0e57d793-f1ac-4eeb-a30f-643b082d68ec",
-    "EP_URL": "https://317ec.36fe.dn.glob.us",
     # Format for BDBag archives
     "ARCHIVE_FORMAT": "zip"
 }

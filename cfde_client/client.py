@@ -357,7 +357,7 @@ class CfdeClient():
 
         # Now BDBag is archived file
         # Set path on destination
-        dest_path = "{}{}".format(CONFIG["EP_DIR"], os.path.basename(data_path))
+        dest_path = "{}{}".format(self.flow_info["cfde_ep_path"], os.path.basename(data_path))
 
         # If doing dry run, stop here before making Flow input
         if dry_run:
@@ -382,6 +382,7 @@ class CfdeClient():
                 "source_path": data_path,
                 "cfde_ep_id": self.flow_info["cfde_ep_id"],
                 "cfde_ep_path": dest_path,
+                "cfde_ep_url": self.flow_info["cfde_ep_url"],
                 "is_directory": False,
                 "final_acls": dataset_acls
             }
@@ -395,7 +396,7 @@ class CfdeClient():
                 print("No Globus Endpoint detected; using HTTP upload instead")
             headers = {}
             self.__https_authorizer.set_authorization_header(headers)
-            data_url = "{}{}".format(CONFIG["EP_URL"], dest_path)
+            data_url = "{}{}".format(self.flow_info["cfde_ep_url"], dest_path)
 
             with open(data_path, 'rb') as bag_file:
                 bag_data = bag_file.read()
@@ -469,7 +470,10 @@ class CfdeClient():
                         .format(flow_id, flow_res["action_id"])),
             "flow_id": flow_id,
             "flow_instance_id": flow_res["action_id"],
-            "fair_re_dest_path": dest_path
+            "cfde_dest_path": dest_path,
+            "http_link": "{}{}".format(self.flow_info["cfde_ep_url"], dest_path),
+            "globus_web_link": ("https://app.globus.org/file-manager?origin_id={}&origin_path={}"
+                                .format(self.flow_info["cfde_ep_id"], os.path.dirname(dest_path)))
         }
 
     def check_status(self, flow_id=None, flow_instance_id=None, raw=False):
@@ -495,7 +499,8 @@ class CfdeClient():
         flow_status = self.flow_client.flow_action_status(flow_id, flow_def["globus_auth_scope"],
                                                           flow_instance_id).data
 
-        clean_status = "\nStatus of {} (instance {})\n".format(flow_def["title"], flow_instance_id)
+        clean_status = ("\nStatus of {} (Flow ID {})\nThis instance ID: {}\n\n"
+                        .format(flow_def["title"], flow_id, flow_instance_id))
         # Flow overall status
         # NOTE: Automate Flows do NOT fail automatically if an Action fails.
         #       Any "FAILED" Flow has an error in the Flow itself.
