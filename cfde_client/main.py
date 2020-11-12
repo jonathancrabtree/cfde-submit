@@ -19,7 +19,6 @@ def cli():
 
 @cli.command()
 @click.argument("data-path", nargs=1, type=click.Path(exists=True))
-@click.option("--author-email", "--email", "-e", default=None)
 @click.option("--catalog", default=None, show_default=True)
 @click.option("--schema", default=None, show_default=True)
 @click.option("--acl-file", default=None, show_default=True, type=click.Path(exists=True))
@@ -36,7 +35,7 @@ def cli():
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--service-instance", default=None)  # , hidden=True)
-def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
+def run(data_path, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
         dry_run, verbose, force_login, no_browser, server, force_http,
         bag_kwargs_file, client_state_file, service_instance):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
@@ -66,6 +65,7 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
     else:
         dataset_acls = None
 
+    '''
     # Determine author_email to use
     if verbose:
         print("Determining author email")
@@ -97,7 +97,7 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
             print("Email '{}' will be saved if the Flow initialization is successful "
                   "and this is not a dry run"
                   .format(author_email))
-
+    '''
     try:
         if verbose:
             print("Initializing Flow")
@@ -105,7 +105,7 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
                           service_instance=service_instance)
         if verbose:
             print("CfdeClient initialized, starting Flow")
-        start_res = cfde.start_deriva_flow(data_path, author_email, catalog_id=catalog,
+        start_res = cfde.start_deriva_flow(data_path, catalog_id=catalog,
                                            schema=schema, dataset_acls=dataset_acls,
                                            output_dir=output_dir, delete_dir=delete_dir,
                                            handle_git_repos=(not ignore_git),
@@ -120,25 +120,21 @@ def run(data_path, author_email, catalog, schema, acl_file, output_dir, delete_d
         else:
             print(start_res["message"])
             if not dry_run:
-                dest_path = start_res["fair_re_dest_path"]
-                dir_path = os.path.dirname(dest_path)
-                filename = os.path.basename(dest_path)
-                http_link = "{}{}".format(CONFIG["EP_URL"], dest_path)
-                globus_web_link = ("https://app.globus.org/file-manager?origin_id={}"
-                                   "&origin_path={}".format(CONFIG["EP_UUID"], dir_path))
                 state["service_instance"] = service_instance
                 state["flow_id"] = start_res["flow_id"]
                 state["flow_instance_id"] = start_res["flow_instance_id"]
-                state["http_link"] = http_link
-                state["globus_web_link"] = globus_web_link
+                state["http_link"] = start_res["http_link"]
+                state["globus_web_link"] = start_res["globus_web_link"]
                 with open(client_state_file, 'w') as out:
                     json.dump(state, out)
                 if verbose:
                     print("State saved to '{}'".format(client_state_file))
-                print("\nThe BDBag with your data is named '{}', and is available through Globus "
-                      "here:\n{}\n".format(filename, globus_web_link))
-                print("You BDBag is also available via direct HTTP download here:\n{}"
-                      .format(http_link))
+
+                filename = os.path.basename(start_res["cfde_dest_path"])
+                print("\nThe BDBag with your data is named '{}', and will be available through "
+                      "Globus here:\n{}\n".format(filename, state["globus_web_link"]))
+                print("You BDBag will also be available via direct HTTP download here:\n{}"
+                      .format(state["http_link"]))
 
 
 @cli.command()
