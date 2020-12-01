@@ -10,6 +10,7 @@ import git
 import globus_automate_client
 import globus_sdk
 import requests
+from tableschema.exceptions import CastError
 
 from cfde_client import CONFIG
 from .version import __version__ as VERSION
@@ -67,37 +68,42 @@ def ts_validate(data_path, schema=None):
             "error": "Path '{}' does not refer to a file".format(data_path)
         }
 
-    # Read into Package, return error on failure
+    # Read into Package (identical to DataPackage), return error on failure
     try:
         pkg = Package(descriptor=data_path, strict=True)
     except Exception as e:
         return {
             "is_valid": False,
             "raw_errors": e.errors,
-            "error": e.errors
+            "error": "\n".join([str(err) for err in pkg.errors])
         }
-
-    if schema:
-        # Download reference schema
-        schema_path = os.path.join(os.path.dirname(data_path), "validation_schema.json")
+    # Check and return package validity based on non-Exception-throwing Package validation
+    if not pkg.valid:
+        return {
+            "is_valid": pkg.valid,
+            "raw_errors": pkg.errors,
+            "error": "\n".join([str(err) for err in pkg.errors])
+        }
+    # Perform manual validation as well
+    for resource in pkg.resources:
         try:
-            with open(schema_path, "wb") as f:
-                f.write(requests.get(schema).content)
+            resource.read()
+        except CastError as e:
+            return {
+                "is_valid": False,
+                "raw_errors": e.errors,
+                "error": "\n".join([str(err) for err in e.errors])
+            }
         except Exception as e:
             return {
                 "is_valid": False,
-                "raw_errors": [e],
-                "error": "Error while downloading schema: {}".format(str(e))
+                "raw_errors": repr(e),
+                "error": str(e)
             }
-        # TODO: Validate against downloaded schema
-        print("Warning: Currently unable to validate data against existing schema '{}'."
-              .format(schema))
-
-    # Actually check and return package validity based on Package validation
     return {
-        "is_valid": pkg.valid,
-        "raw_errors": pkg.errors,
-        "error": "\n".join([str(err) for err in pkg.errors])
+        "is_valid": True,
+        "raw_errors": [],
+        "error": None
     }
 
 
@@ -140,27 +146,20 @@ class CfdeClient():
                                                     authorizer=automate_authorizer)
         self.last_flow_run = {}
         # Fetch dynamic config info
-        # TODO: Fix dynamic config info fetching
-        #       HTTP downloads from the GCSv5.4 HA EP aren't working for some reason
-        #       - always redirected to Auth via Python Requests,
-        #       400 error in browser. In the meantime, hardcode config.
         self.service_instance = kwargs.get("service_instance") or "prod"
         try:
-            '''
             dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINKS"][self.service_instance])
             if dconf_res.status_code >= 300:
                 raise ValueError("Unable to download required configuration: Error {}: {}"
                                  .format(dconf_res.status_code, dconf_res.content))
             dconf = dconf_res.json()
-            '''
-            dconf = CONFIG["TEMP_HARDCODED_CONFIG"]
             self.catalogs = dconf["CATALOGS"]
             self.flow_info = dconf["FLOWS"][self.service_instance]
         except KeyError as e:
             raise ValueError("Flow configuration for service_instance '{}' not found"
                              .format(self.service_instance)) from e
         except json.JSONDecodeError:
-            if "<!DOCTYPE html>" in dconf_res.content:
+            if b"<!DOCTYPE html>" in dconf_res.content:
                 raise ValueError("Unable to authenticate with Globus: "
                                  "HTML authentication flow detected")
             else:
@@ -196,10 +195,10 @@ class CfdeClient():
         """
         self.__native_client.logout()
 
-    def start_deriva_flow(self, data_path, catalog_id=None,
+    def start_deriva_flow(self, data_path, dcc_id, catalog_id=None,
                           schema=None, server=None, dataset_acls=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
-                          dry_run=False, verbose=False, **kwargs):
+                          dry_run=False, test_sub=False, verbose=False, **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
 
         Arguments:
@@ -208,6 +207,7 @@ class CfdeClient():
                     2) A Git repository to be copied into a BDBag
                     3) A premade BDBag directory
                     4) A premade BDBag in an archive file
+            dcc_id (str): The CFDE-recognized DCC ID for this submission.
             catalog_id (int or str): The ID of the DERIVA catalog to ingest into.
                     Default None, to create a new catalog.
             schema (str): The named schema or schema file link to validate data against.
@@ -235,6 +235,10 @@ class CfdeClient():
                     When True, does not ingest into DERIVA or start the Globus Automate Flow,
                     and the return value will not have valid DERIVA Flow information.
                     Default False.
+            test_sub (bool): Should the submission be run in "test mode" where
+                    the submission will be inegsted into DERIVA and immediately deleted?
+                    When True, the data wil not remain in DERIVA to be viewed and the
+                    Flow will terminate before any curation step.
             verbose (bool): Should intermediate status messages be printed out?
                     Default False.
 
@@ -384,7 +388,8 @@ class CfdeClient():
                 "cfde_ep_path": dest_path,
                 "cfde_ep_url": self.flow_info["cfde_ep_url"],
                 "is_directory": False,
-                "final_acls": dataset_acls
+                "test_sub": test_sub,
+                "dcc_id": dcc_id
             }
             if catalog_id:
                 flow_input["catalog_id"] = str(catalog_id)
@@ -428,7 +433,8 @@ class CfdeClient():
             flow_input = {
                 "source_endpoint_id": False,
                 "data_url": data_url,
-                "final_acls": dataset_acls
+                "test_sub": test_sub,
+                "dcc_id": dcc_id
             }
             if catalog_id:
                 flow_input["catalog_id"] = str(catalog_id)
