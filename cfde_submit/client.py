@@ -12,7 +12,7 @@ import globus_sdk
 import requests
 from tableschema.exceptions import CastError
 
-from cfde_client import CONFIG
+from cfde_submit import CONFIG
 from .version import __version__ as VERSION
 
 
