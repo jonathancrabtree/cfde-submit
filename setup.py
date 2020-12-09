@@ -14,7 +14,7 @@ setup(
     entry_points='''
     [console_scripts]
     cfde=cfde_client.main:cli
-''',
+    ''',
     install_requires=[
         "bdbag>=1.5.5",
         "Click>=7.0",
@@ -26,5 +26,5 @@ setup(
         "packaging>=20.1",
         "requests>=2.22.0"
     ],
-    python_requires=">=3.4"
+    python_requires=">=3.6"
 )
