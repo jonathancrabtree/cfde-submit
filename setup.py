@@ -14,6 +14,8 @@ setup(
     name="cfde-submit",
     description="A command line tool for submitting CFDE Datasets",
     long_description=long_description,
+    long_description_content_type='text/x-rst',
+    url='https://github.com/nih-cfde/deriva-flow-client',
     version=version,
     packages=find_packages(),
     entry_points='''
