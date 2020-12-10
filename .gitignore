@@ -1,7 +1,11 @@
+build/
+dist/
+
 *.egg-info*
 *.log
 *.pyc
 *.swp
+*.idea
 *keys.py
 *cfde-backup*
 *checkpoint.ipynb

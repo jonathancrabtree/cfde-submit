@@ -5,7 +5,7 @@ import sys
 
 import click
 
-from cfde_client import CfdeClient
+from cfde_submit import CfdeClient
 
 
 DEFAULT_STATE_FILE = os.path.expanduser("~/.cfde_client.json")
