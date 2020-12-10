@@ -1,11 +1,9 @@
-from io import StringIO
 import json
 import os
-import sys
 
 import click
 
-from cfde_submit import CfdeClient
+from cfde_submit import CfdeClient, exc
 
 
 DEFAULT_STATE_FILE = os.path.expanduser("~/.cfde_client.json")
@@ -30,16 +28,13 @@ def cli():
 @click.option("--test-submission", "--test-sub", "--test-drive", is_flag=True,
               default=False, show_default=True)
 @click.option("--verbose", "-v", is_flag=True, default=False, show_default=True)
-@click.option("--force-login", is_flag=True, default=False, show_default=True)
-# TODO: Debug "hidden" missing parameter
-@click.option("--no_browser", is_flag=True, default=False)  # , hidden=True)
 @click.option("--server", default=None)  # , hidden=True)
 @click.option("--force-http", is_flag=True, default=False)  # , hidden=True)
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--service-instance", default=None)  # , hidden=True)
 def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
-        dry_run, test_submission, verbose, force_login, no_browser, server, force_http,
+        dry_run, test_submission, verbose, server, force_http,
         bag_kwargs_file, client_state_file, service_instance):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
     # Get any saved parameters
@@ -107,8 +102,7 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
     try:
         if verbose:
             print("Initializing Flow")
-        cfde = CfdeClient(no_browser=no_browser, force=force_login,
-                          service_instance=service_instance)
+        cfde = CfdeClient(service_instance=service_instance)
         if verbose:
             print("CfdeClient initialized, starting Flow")
         start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
@@ -186,46 +180,29 @@ def status(flow_id, flow_instance_id, raw, client_state_file, service_instance):
 @cli.command()
 @click.option("--force-login", is_flag=True, default=False, show_default=True)
 @click.option("--no_browser", is_flag=True, default=False)
-def login(force_login, no_browser):
+@click.option("--no_local_server", is_flag=True, default=False)
+def login(force_login, no_browser, no_local_server):
     """Perform the login step (which saves credentials) by initializing
     a CfdeClient. The Client is then discarded.
     """
-    print("Starting login check")
-    CfdeClient(no_browser=no_browser, force=force_login)
-    print("You are authenticated and your tokens have been cached.")
+    cfde = CfdeClient()
+    if cfde.is_logged_in():
+        click.secho("You are already logged in")
+    else:
+        cfde = CfdeClient()
+        cfde.login(force=force_login, no_browser=no_browser, no_local_server=no_local_server)
+        click.secho("You are authenticated and your tokens have been cached.", fg='green')
+    try:
+        cfde.check()
+    except exc.CfdeClientException as ce:
+        click.secho(str(ce), fg='red')
 
 
 @cli.command()
 def logout():
     """Log out and revoke your tokens."""
-    print("Logging out and revoking tokens")
-    # Messing with the tokens outside of the CfdeClient seems like an error-prone idea.
-    # However, we don't have a Client instantiated here to log out with.
-    # So, we're going to attempt to create one.
-    try:
-        # We'll suppress stdout, so the user isn't actually prompted to log in,
-        # and prepare an invalid prompt response in stdin.
-        old_stdin = sys.stdin
-        new_stdin = StringIO("\n")
-        sys.stdin = new_stdin
-        # If the auth flow fires, it will read the invalid response and raise an exception,
-        # which indicates that there are no valid existing tokens,
-        # so the user is already logged out.
-        old_stdout = sys.stdout
-        with open(os.devnull, 'w') as new_stdout:
-            sys.stdout = new_stdout
-            client = CfdeClient(no_browser=True)
-        # Otherwise, if the Client initializes without an auth step, we must actually logout.
-        client.logout()
-    except Exception as e:
-        # If this is an invalid grant error, there are no valid existing tokens,
-        # so we can eat the exception
-        if len(e.args) >= 3 and e.args[2] == "invalid_grant":
-            pass
-        # Else, the exception was unexpected
-        else:
-            raise
-    finally:
-        sys.stdout = old_stdout
-        sys.stdin = old_stdin
-    print("You are logged out.")
+    if CfdeClient().is_logged_in():
+        CfdeClient().logout()
+        click.secho("You have been logged out", fg='green')
+    else:
+        click.secho("You are not logged in")
