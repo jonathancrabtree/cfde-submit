@@ -2,6 +2,7 @@
 *.log
 *.pyc
 *.swp
+*.idea
 *keys.py
 *cfde-backup*
 *checkpoint.ipynb

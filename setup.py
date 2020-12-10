@@ -11,7 +11,7 @@ with open('README.md') as f:
     long_description = f.read()
 
 setup(
-    name="cfde_client",
+    name="cfde-submit",
     description="A command line tool for submitting CFDE Datasets",
     long_description=long_description,
     version=version,
