@@ -23,9 +23,7 @@ Python 3 installed, you may need to check with `python3 --version`. If this is
 the case, you will also need to use `pip3` instead of `pip` below.
 
 ```
-git clone https://github.com/fair-research/deriva-flow-client.git
-cd cfde-submit
-pip install -e .
+pip install cfde-submit
 ```
 
 Usage
