@@ -48,24 +48,22 @@ Use them as follows:
 
 - `cfde-submit run DATA-PATH` will ingest the data found at `DATA-PATH` into
   DERIVA. You can also specify the following options:
-    - `--catalog-id=CATALOG_ID` will ingest into an existing catalog instead of
-      creating a new catalog.
-    - `--output-dir=OUTPUT_DIR` will copy the data in `DATA-PATH`, if it is a
-      directory, to the location you specify, which must not exist and must not
-      be inside `DATA-PATH`. The resulting BDBag will be named after the output
-      directory. If not specified, the BDBag will be created in-place in
-      `DATA_PATH` if necessary.
-    - `--delete-dir` will trigger deletion of the `output-dir` after processing
-      is complete. If you didn't specify `output-dir`, this option has no effect.
-    - `--ignore-git` will prevent the client from overwriting `output-dir` and
-      `delete-dir` to handle Git repositories.
-
+  - `--catalog-id=CATALOG_ID` will ingest into an existing catalog instead of creating a new catalog.
+  - `--output-dir=OUTPUT_DIR` will copy the data in `DATA-PATH`, if it is a
+  directory, to the location you specify, which must not exist and must not
+  be inside `DATA-PATH`. The resulting BDBag will be named after the output
+  directory. If not specified, the BDBag will be created in-place in
+  `DATA_PATH` if necessary.
+  - `--delete-dir` will trigger deletion of the `output-dir` after processing
+  is complete. If you didn't specify `output-dir`, this option has no effect.
+  - `--ignore-git` will prevent the client from overwriting `output-dir` and
+  `delete-dir` to handle Git repositories.
 - `cfde-submit status` will check the status of a Flow instance. By default,
   the last run Flow is used, but if you want to check a previous Flow you can
   provide one or both of the following options:
-    - `--flow-id=ID` is the ID of the Flow itself (NOT a specific instance of the Flow).
-    - `--flow-instance-id=ID` is the ID of the particular instance/invocation
-    of the Flow you want to check.
+  - `--flow-id=ID` is the ID of the Flow itself (NOT a specific instance of the Flow).
+  - `--flow-instance-id=ID` is the ID of the particular instance/invocation
+  of the Flow you want to check.
 
 - `cfde-submit login` will start the login process. If you have tokens saved
   from a previous login, this command will validate those tokens and only
