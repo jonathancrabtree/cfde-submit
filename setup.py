@@ -7,7 +7,7 @@ with open(os.path.join("cfde_submit", "version.py")) as f:
     exec(f.read(), version_ns)
 version = version_ns['__version__']
 
-with open('README.md') as f:
+with open('README.rst') as f:
     long_description = f.read()
 
 setup(
