@@ -22,9 +22,11 @@ of Python you have, run `python --version`. If you have both Python 2 and
 Python 3 installed, you may need to check with `python3 --version`. If this is
 the case, you will also need to use `pip3` instead of `pip` below.
 
-```
-pip install cfde-submit
-```
+Install with pip:
+
+.. code-block:: python
+
+    pip install cfde-submit
 
 Usage
 =====
