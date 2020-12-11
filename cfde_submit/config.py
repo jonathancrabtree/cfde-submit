@@ -1,3 +1,13 @@
+"""
+NOTE! This only lists the base config items for the cfde-submit package.
+
+Dynamic configs are remotely fetched from the Production Globus Endpoint,
+allowing flows to change independent of client code updates.
+
+LOGGING: To enable extended logging, set the CFDE_SUBMIT_LOGGING env var.
+EX: export CFDE_SUBMIT_LOGGING=DEBUG
+"""
+import os
 import globus_automate_client
 
 
@@ -17,6 +27,23 @@ CONFIG = {
         "INACTIVE": "has stalled, and may need help to resume",
         "SUCCEEDED": "has completed successfully",
         "FAILED": "has failed"
+    },
+    "LOGGING": {
+        "version": 1,
+        "formatters": {
+            "basic": {"format": "[%(levelname)s] %(name)s::%(funcName)s() %(message)s"}
+        },
+        "handlers": {
+            "console": {
+                "class": ("logging.StreamHandler" if os.getenv("CFDE_SUBMIT_LOGGING")
+                          else "logging.NullHandler"),
+                "level": os.getenv("CFDE_SUBMIT_LOGGING") or "INFO",
+                "formatter": "basic",
+            }
+        },
+        "loggers": {
+            "cfde_submit": {"level": "DEBUG", "handlers": ["console"]},
+        },
     },
     # Automate Scopes
     "HTTPS_SCOPE": "https://auth.globus.org/scopes/0e57d793-f1ac-4eeb-a30f-643b082d68ec/https",

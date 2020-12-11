@@ -1,19 +1,23 @@
 import json
 import os
+import logging.config
 from packaging.version import parse as parse_version
 import shutil
 
 from bdbag import bdbag_api
 from datapackage import Package
-from fair_research_login import NativeClient
+import fair_research_login
 import git
 import globus_automate_client
 import globus_sdk
 import requests
 from tableschema.exceptions import CastError
 
-from cfde_submit import CONFIG
+from cfde_submit import CONFIG, exc
 from .version import __version__ as VERSION
+
+logging.config.dictConfig(CONFIG["LOGGING"])
+logger = logging.getLogger(__name__)
 
 
 def ts_validate(data_path, schema=None):
@@ -110,51 +114,91 @@ def ts_validate(data_path, schema=None):
 class CfdeClient():
     """The CfdeClient enables easily using the CFDE tools to ingest data."""
     client_id = "417301b1-5101-456a-8a27-423e71a2ae26"
+    scopes = CONFIG["ALL_SCOPES"]
     app_name = "CfdeClient"
     archive_format = "tgz"
 
-    def __init__(self, **kwargs):
+    def __init__(self, service_instance="prod", tokens=None):
         """Create a CfdeClient.
 
         Keyword Arguments:
-            no_browser (bool): Do not automatically open the browser for the Globus Auth URL.
-                    Display the URL instead and let the user navigate to that location manually.
-                    **Default**: ``False``.
-            refresh_tokens (bool): Use Globus Refresh Tokens to extend login time.
-                    **Default**: ``True``.
-            force (bool): Force a login flow, even if loaded tokens are valid.
-                    **Default**: ``False``.
             service_instance (str): The instance of the Globus Automate Flow
                     and/or the DERIVA ingest Action Provider to use. Unless directed otherwise,
                     this should be left to the default. **Default**: ``prod``.
+            tokens (dict): A dict keyed by scope, of active Globus Tokens. token keys MUST be a
+                    subset of self.scopes. Each token value must contain an additional dict, and
+                    have an active "access_token". setting tokens=None will require .login() to
+                    be called instead.
+                    **Default**: ``None``.
         """
-        self.__native_client = NativeClient(client_id=self.client_id, app_name=self.app_name)
-        self.__native_client.login(requested_scopes=CONFIG["ALL_SCOPES"],
-                                   no_browser=kwargs.get("no_browser", False),
-                                   no_local_server=kwargs.get("no_browser", False),
-                                   refresh_tokens=kwargs.get("refresh_tokens", True),
-                                   force=kwargs.get("force", False))
-        tokens = self.__native_client.load_tokens_by_scope()
-        flows_token_map = {scope: token["access_token"] for scope, token in tokens.items()}
-        automate_authorizer = self.__native_client.get_authorizer(
-                                    tokens[globus_automate_client.flows_client.MANAGE_FLOWS_SCOPE])
-        self.__https_authorizer = self.__native_client.get_authorizer(tokens[CONFIG["HTTPS_SCOPE"]])
-        self.flow_client = globus_automate_client.FlowsClient(
-                                                    flows_token_map, self.client_id, "flows_client",
-                                                    app_name=self.app_name,
-                                                    base_url="https://flows.automate.globus.org",
-                                                    authorizer=automate_authorizer)
+        self.__remote_config = {}  # managed by property
+        self.__tokens = {}
+        self.__flow_client = None
+        self.__native_client = fair_research_login.NativeClient(
+            client_id=self.client_id, app_name=self.app_name,
+            default_scopes=self.scopes)
         self.last_flow_run = {}
         # Fetch dynamic config info
-        self.service_instance = kwargs.get("service_instance") or "prod"
+        self.service_instance = service_instance
+        self.tokens = tokens or {}
+        # Set to true when self.check() passes
+        self.ready = False
+
+    @property
+    def version(self):
+        return VERSION
+
+    @property
+    def tokens(self):
+        if not self.__tokens:
+            try:
+                self.__tokens = self.__native_client.load_tokens_by_scope()
+            except fair_research_login.LoadError:
+                raise exc.NotLoggedIn("Client has no tokens, either call login() "
+                                      "or supply tokens to client on init.")
+        return self.__tokens
+
+    @tokens.setter
+    def tokens(self, new_tokens):
+        # Check tokens, if supplied outside of client
+        if new_tokens and set(new_tokens) != set(self.scopes):
+            raise exc.NotLoggedIn("Tokens supplied to CfdeClient are invalid, "
+                                  f"They MUST match {self.scopes}")
+
+    def login(self, **login_kwargs):
+        """Login to the cfde-submit client. This will ensure the user has the correct
+        tokens configured but it DOES NOT guarantee they are in the correct group to
+        run a flow. Can be run both locally and on a server.
+        See help(fair_research_login.NativeClient.login) for a full list of kwargs.
+        """
+        logger.info("Initiating Native App Login...")
+        self.__native_client.login(**login_kwargs)
+        logger.debug(f"Logged in with tokens: {self.tokens.keys()}")
+
+    def logout(self):
+        """Log out and revoke this client's tokens. This object will no longer
+        be usable; to submit additional data or check the status of previous submissions,
+        you must create a new CfdeClient.
+        """
+        self.__native_client.logout()
+
+    def is_logged_in(self):
+        try:
+            return bool(self.tokens)
+        except exc.NotLoggedIn:
+            return False
+
+    @property
+    def remote_config(self):
+        if self.__remote_config:
+            return self.__remote_config
         try:
             dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINKS"][self.service_instance])
             if dconf_res.status_code >= 300:
                 raise ValueError("Unable to download required configuration: Error {}: {}"
                                  .format(dconf_res.status_code, dconf_res.content))
-            dconf = dconf_res.json()
-            self.catalogs = dconf["CATALOGS"]
-            self.flow_info = dconf["FLOWS"][self.service_instance]
+            self.__remote_config = dconf_res.json()
+            return self.__remote_config
         except KeyError as e:
             raise ValueError("Flow configuration for service_instance '{}' not found"
                              .format(self.service_instance)) from e
@@ -167,33 +211,67 @@ class CfdeClient():
         except Exception:
             # TODO: Are there other exceptions that need to be handled/translated?
             raise
-        # Verify client version is compatible with service
-        if parse_version(dconf["MIN_VERSION"]) > parse_version(VERSION):
-            raise RuntimeError("This CFDE Client is not up to date and can no longer make "
-                               "submissions. Please update the client and try again.")
-        # Verify user has permission to view Flow
-        try:
-            self.flow_client.get_flow(self.flow_info["flow_id"])
-        except globus_sdk.GlobusAPIError as e:
-            if e.http_status == 404:
-                raise PermissionError(
-                            "Unable to view ingest Flow. Are you in the CFDE DERIVA "
-                            "Demo Globus Group? Check your membership or apply for access "
-                            "here: https://app.globus.org/groups/a437abe3-c9a4-11e9-b441-"
-                            "0efb3ba9a670/about")
-            else:
-                raise
 
     @property
-    def version(self):
-        return VERSION
+    def flow_client(self):
+        if self.__flow_client:
+            return self.__flow_client
+        flows_token_map = {scope: token["access_token"] for scope, token in self.tokens.items()}
+        automate_authorizer = self.__native_client.get_authorizer(
+            self.tokens[globus_automate_client.flows_client.MANAGE_FLOWS_SCOPE])
+        # The flows client requires both a token map of flows it can call, in addition to
+        # its own authorizer to talk to the core automate service. Ideally, this would be
+        # cleaner so we wouldn't have to track the tokens and authorizer separately.
+        self.__flow_client = globus_automate_client.FlowsClient(
+            flows_token_map, self.client_id, "flows_client",
+            app_name=self.app_name,
+            base_url="https://flows.automate.globus.org",
+            authorizer=automate_authorizer
+        )
+        return self.__flow_client
 
-    def logout(self):
-        """Log out and revoke this client's tokens. This object will no longer
-        be usable; to submit additional data or check the status of previous submissions,
-        you must create a new CfdeClient.
-        """
-        self.__native_client.logout()
+    @property
+    def https_authorizer(self):
+        try:
+            return self.__native_client.get_authorizers_by_scope()[CONFIG["HTTP_SCOPE"]]
+        except (fair_research_login.LoadError, KeyError):
+            at = self.tokens[CONFIG["HTTPS_SCOPE"]]["access_token"]
+            return globus_sdk.AccessTokenAuthorizer(at)
+
+    def check(self, raise_exception=True):
+        if self.ready:
+            return True
+        try:
+            if not self.tokens:
+                logger.debug('No tokens for client, attempting load...')
+                self.tokens = self.__native_client.load_tokens_by_scope()
+            # Verify client version is compatible with service
+            if parse_version(self.remote_config["MIN_VERSION"]) > parse_version(VERSION):
+                raise exc.OutdatedVersion(
+                    "This CFDE Client is not up to date and can no longer make "
+                    "submissions. Please update the client and try again."
+                )
+            # Verify user has permission to view Flow
+            try:
+                flow_info = self.remote_config["FLOWS"][self.service_instance]
+                self.flow_client.get_flow(flow_info["flow_id"])
+            except globus_sdk.GlobusAPIError as e:
+                logger.debug(str(e))
+                if e.http_status == 405:
+                    raise exc.PermissionDenied(
+                                "Unable to view ingest Flow. Are you in the CFDE DERIVA "
+                                "Demo Globus Group? Check your membership or apply for access "
+                                "here: \nhttps://app.globus.org/groups/a437abe3-c9a4-11e9-b441-"
+                                "0efb3ba9a670/about")
+                else:
+                    raise
+            self.ready = True
+            logger.info('Check PASSED, client is ready use flows.')
+        except Exception:
+            logger.info('Check FAILED, client lacks permissions or is not logged in.')
+            self.ready = False
+            if raise_exception is True:
+                raise
 
     def start_deriva_flow(self, data_path, dcc_id, catalog_id=None,
                           schema=None, server=None, dataset_acls=None,
@@ -251,18 +329,20 @@ class CfdeClient():
         Other keyword arguments are passed directly to the ``make_bag()`` function of the
         BDBag API (see https://github.com/fair-research/bdbag for details).
         """
+        self.check()
         if verbose:
             print("Startup: Validating input")
         data_path = os.path.abspath(data_path)
         if not os.path.exists(data_path):
             raise FileNotFoundError("Path '{}' does not exist".format(data_path))
 
-        if catalog_id in self.catalogs.keys():
+        catalogs = self.remote_config['CATALOGS']
+        if catalog_id in catalogs.keys():
             if schema:
                 raise ValueError("You may not specify a schema ('{}') when ingesting to "
                                  "a named catalog ('{}'). Retry without specifying "
                                  "a schema.".format(schema, catalog_id))
-            schema = self.catalogs[catalog_id]
+            schema = catalogs[catalog_id]
         # Pull out known kwargs
         force_http = kwargs.pop("force_http", False)
 
@@ -361,7 +441,8 @@ class CfdeClient():
 
         # Now BDBag is archived file
         # Set path on destination
-        dest_path = "{}{}".format(self.flow_info["cfde_ep_path"], os.path.basename(data_path))
+        flow_info = self.remote_config["FLOWS"][self.service_instance]
+        dest_path = "{}{}".format(flow_info["cfde_ep_path"], os.path.basename(data_path))
 
         # If doing dry run, stop here before making Flow input
         if dry_run:
@@ -380,13 +461,13 @@ class CfdeClient():
             if verbose:
                 print("Using local Globus Connect Personal Endpoint '{}'".format(local_endpoint))
             # Populate Transfer fields in Flow
-            flow_id = self.flow_info["flow_id"]
+            flow_id = flow_info["flow_id"]
             flow_input = {
                 "source_endpoint_id": local_endpoint,
                 "source_path": data_path,
-                "cfde_ep_id": self.flow_info["cfde_ep_id"],
+                "cfde_ep_id": flow_info["cfde_ep_id"],
                 "cfde_ep_path": dest_path,
-                "cfde_ep_url": self.flow_info["cfde_ep_url"],
+                "cfde_ep_url": flow_info["cfde_ep_url"],
                 "is_directory": False,
                 "test_sub": test_sub,
                 "dcc_id": dcc_id
@@ -400,8 +481,9 @@ class CfdeClient():
             if verbose:
                 print("No Globus Endpoint detected; using HTTP upload instead")
             headers = {}
-            self.__https_authorizer.set_authorization_header(headers)
-            data_url = "{}{}".format(self.flow_info["cfde_ep_url"], dest_path)
+            https_authorizer = self.https_authorizer
+            https_authorizer.set_authorization_header(headers)
+            data_url = "{}{}".format(flow_info["cfde_ep_url"], dest_path)
 
             with open(data_path, 'rb') as bag_file:
                 bag_data = bag_file.read()
@@ -410,8 +492,8 @@ class CfdeClient():
 
             # Regenerate headers on 401
             if put_res.status_code == 401:
-                self.__https_authorizer.handle_missing_authorization()
-                self.__https_authorizer.set_authorization_header(headers)
+                https_authorizer.handle_missing_authorization()
+                https_authorizer.set_authorization_header(headers)
                 put_res = requests.put(data_url, data=bag_data, headers=headers)
 
             # Error message on failed PUT or any unexpected response
@@ -429,7 +511,7 @@ class CfdeClient():
                 print("Upload successful to '{}': {} {}".format(data_url, put_res.status_code,
                                                                 put_res.content))
 
-            flow_id = self.flow_info["flow_id"]
+            flow_id = flow_info["flow_id"]
             flow_input = {
                 "source_endpoint_id": False,
                 "data_url": data_url,
@@ -477,9 +559,9 @@ class CfdeClient():
             "flow_id": flow_id,
             "flow_instance_id": flow_res["action_id"],
             "cfde_dest_path": dest_path,
-            "http_link": "{}{}".format(self.flow_info["cfde_ep_url"], dest_path),
+            "http_link": "{}{}".format(flow_info["cfde_ep_url"], dest_path),
             "globus_web_link": ("https://app.globus.org/file-manager?origin_id={}&origin_path={}"
-                                .format(self.flow_info["cfde_ep_id"], os.path.dirname(dest_path)))
+                                .format(flow_info["cfde_ep_id"], os.path.dirname(dest_path)))
         }
 
     def check_status(self, flow_id=None, flow_instance_id=None, raw=False):
@@ -493,6 +575,7 @@ class CfdeClient():
             raw (bool): Should the status results be returned?
                     Default: False, to print the results instead.
         """
+        self.check()
         if not flow_id:
             flow_id = self.last_flow_run.get("flow_id")
         if not flow_instance_id:
@@ -504,6 +587,7 @@ class CfdeClient():
         flow_def = self.flow_client.get_flow(flow_id)
         flow_status = self.flow_client.flow_action_status(flow_id, flow_def["globus_auth_scope"],
                                                           flow_instance_id).data
+        flow_info = self.remote_config["FLOWS"][self.service_instance]
 
         clean_status = ("\nStatus of {} (Flow ID {})\nThis instance ID: {}\n\n"
                         .format(flow_def["title"], flow_id, flow_instance_id))
@@ -547,9 +631,9 @@ class CfdeClient():
             flow_output = flow_status["details"]["output"]
             # Each Step is only present in exactly one "SUCCEEDED" Flow result,
             # and they are mutually exclusive
-            success_step = self.flow_info["success_step"]
-            failure_step = self.flow_info["failure_step"]
-            error_step = self.flow_info["error_step"]
+            success_step = flow_info["success_step"]
+            failure_step = flow_info["failure_step"]
+            error_step = flow_info["error_step"]
             if success_step in flow_output.keys():
                 clean_status += flow_output[success_step]["details"]["message"]
             elif failure_step in flow_output.keys():
