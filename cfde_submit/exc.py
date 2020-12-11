@@ -29,3 +29,7 @@ class NotLoggedIn(CfdeClientException):
 class OutdatedVersion(CfdeClientException):
     """The current version of cfde-submit is out of date"""
     pass
+
+
+class SubmissionsUnavailable(CfdeClientException):
+    pass

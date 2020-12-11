@@ -251,6 +251,13 @@ class CfdeClient():
                     "This CFDE Client is not up to date and can no longer make "
                     "submissions. Please update the client and try again."
                 )
+
+            if not self.remote_config["FLOWS"][self.service_instance]["flow_id"]:
+                logger.critical(f"Service {self.service_instance} has no flow ID! "
+                                f"Submissions will be disabled until that is set!")
+                raise exc.SubmissionsUnavailable(
+                    "Submissions to nih-cfde.org are temporarily offline. Please check "
+                    "with out administrators for further details.")
             # Verify user has permission to view Flow
             try:
                 flow_info = self.remote_config["FLOWS"][self.service_instance]

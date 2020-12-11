@@ -12,12 +12,18 @@ def test_logged_in(logged_in):
 
 def test_start_deriva_flow_while_logged_out(logged_out):
     with pytest.raises(exc.NotLoggedIn):
-        client.CfdeClient().start_deriva_flow('path_to_executable.zip', 'my_dcc')
+        client.CfdeClient().start_deriva_flow("path_to_executable.zip", "my_dcc")
 
 
 def test_client_invalid_version(logged_in, mock_remote_config):
-    mock_remote_config.return_value['MIN_VERSION'] = '9.9.9'
+    mock_remote_config.return_value["MIN_VERSION"] = "9.9.9"
     with pytest.raises(exc.OutdatedVersion):
+        client.CfdeClient().check()
+
+
+def test_client_no_flow_id(logged_in, mock_remote_config):
+    mock_remote_config.return_value["FLOWS"]["prod"]["flow_id"] = ""
+    with pytest.raises(exc.SubmissionsUnavailable):
         client.CfdeClient().check()
 
 
