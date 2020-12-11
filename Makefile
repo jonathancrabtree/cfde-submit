@@ -7,7 +7,7 @@ test:
 	pytest
 
 .PHONY: lint test
-release: lint test
+release: clean lint test
 	$(PYTHON) setup.py sdist bdist_wheel
 
 .PHONY: upload
