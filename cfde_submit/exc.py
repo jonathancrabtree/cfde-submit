@@ -24,3 +24,8 @@ class PermissionDenied(CfdeClientException):
 class NotLoggedIn(CfdeClientException):
     """User is not logged in"""
     pass
+
+
+class OutdatedVersion(CfdeClientException):
+    """The current version of cfde-submit is out of date"""
+    pass

@@ -6,7 +6,7 @@ import shutil
 
 from bdbag import bdbag_api
 from datapackage import Package
-from fair_research_login import NativeClient, LoadError
+import fair_research_login
 import git
 import globus_automate_client
 import globus_sdk
@@ -134,8 +134,9 @@ class CfdeClient():
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
-        self.__native_client = NativeClient(client_id=self.client_id, app_name=self.app_name,
-                                            default_scopes=self.scopes)
+        self.__native_client = fair_research_login.NativeClient(
+            client_id=self.client_id, app_name=self.app_name,
+            default_scopes=self.scopes)
         self.last_flow_run = {}
         # Fetch dynamic config info
         self.service_instance = service_instance
@@ -152,7 +153,7 @@ class CfdeClient():
         if not self.__tokens:
             try:
                 self.__tokens = self.__native_client.load_tokens_by_scope()
-            except LoadError:
+            except fair_research_login.LoadError:
                 raise exc.NotLoggedIn("Client has no tokens, either call login() "
                                       "or supply tokens to client on init.")
         return self.__tokens
@@ -233,7 +234,7 @@ class CfdeClient():
     def https_authorizer(self):
         try:
             return self.__native_client.get_authorizers_by_scope()[CONFIG["HTTP_SCOPE"]]
-        except (LoadError, KeyError):
+        except (fair_research_login.LoadError, KeyError):
             at = self.tokens[CONFIG["HTTPS_SCOPE"]]["access_token"]
             return globus_sdk.AccessTokenAuthorizer(at)
 
@@ -246,8 +247,10 @@ class CfdeClient():
                 self.tokens = self.__native_client.load_tokens_by_scope()
             # Verify client version is compatible with service
             if parse_version(self.remote_config["MIN_VERSION"]) > parse_version(VERSION):
-                raise RuntimeError("This CFDE Client is not up to date and can no longer make "
-                                   "submissions. Please update the client and try again.")
+                raise exc.OutdatedVersion(
+                    "This CFDE Client is not up to date and can no longer make "
+                    "submissions. Please update the client and try again."
+                )
             # Verify user has permission to view Flow
             try:
                 flow_info = self.remote_config["FLOWS"][self.service_instance]
