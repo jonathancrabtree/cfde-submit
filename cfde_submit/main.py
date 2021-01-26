@@ -103,6 +103,8 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
         if verbose:
             print("Initializing Flow")
         cfde = CfdeClient(service_instance=service_instance)
+        if not cfde.is_logged_in():
+            cfde.login()
         if verbose:
             print("CfdeClient initialized, starting Flow")
         start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
