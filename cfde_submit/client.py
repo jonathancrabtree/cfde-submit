@@ -150,7 +150,9 @@ class CfdeClient():
     def tokens(self):
         if not self.__tokens:
             try:
-                self.__tokens = self.__native_client.load_tokens_by_scope(requested_scopes=self.scopes)
+                self.__tokens = self.__native_client.load_tokens_by_scope(
+                    requested_scopes=self.scopes
+                )
             except fair_research_login.LoadError:
                 raise exc.NotLoggedIn("Client has no tokens, either call login() "
                                       "or supply tokens to client on init.")
