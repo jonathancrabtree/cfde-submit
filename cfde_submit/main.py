@@ -1,11 +1,12 @@
 import json
 import os
+import logging
 
 import click
 
 from cfde_submit import CfdeClient, exc
 
-
+logger = logging.getLogger(__name__)
 DEFAULT_STATE_FILE = os.path.expanduser("~/.cfde_client.json")
 
 
@@ -115,6 +116,7 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
                                            test_sub=test_submission, verbose=verbose,
                                            force_http=force_http, **bag_kwargs)
     except Exception as e:
+        logger.exception(e)
         print("Error while starting Flow: {}".format(repr(e)))
         return
     else:
