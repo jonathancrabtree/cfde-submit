@@ -92,13 +92,13 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
                        "Data Coordinating Center: ").strip()
         save_dcc = input("Thank you. Would you like to save '{}' for future submissions? "
                          "y/n: ".format(dcc_id)).strip().lower() in ["y", "yes"]
-    # Save DCC ID in state if requested
-    if save_dcc:
-        state["dcc_id"] = dcc_id
-        if verbose:
-            print("DCC ID '{}' will be saved if the Flow initialization is successful "
-                  "and this is not a dry run"
-                  .format(dcc_id))
+        # Save DCC ID in state if requested
+        if save_dcc:
+            state["dcc_id"] = dcc_id
+            if verbose:
+                print("DCC ID '{}' will be saved if the Flow initialization is successful "
+                      "and this is not a dry run"
+                      .format(dcc_id))
     try:
         if verbose:
             print("Initializing Flow")
