@@ -234,7 +234,7 @@ class CfdeClient():
         # its own authorizer to talk to the core automate service. Ideally, this would be
         # cleaner so we wouldn't have to track the tokens and authorizer separately.
         self.__flow_client = globus_automate_client.FlowsClient(
-            flows_token_map, self.client_id, "flows_client",
+            self.client_id, None,
             app_name=self.app_name,
             base_url="https://flows.automate.globus.org",
             authorizer=automate_authorizer
