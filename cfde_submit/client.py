@@ -114,7 +114,6 @@ def ts_validate(data_path, schema=None):
 class CfdeClient():
     """The CfdeClient enables easily using the CFDE tools to ingest data."""
     client_id = "417301b1-5101-456a-8a27-423e71a2ae26"
-    scopes = CONFIG["ALL_SCOPES"]
     app_name = "CfdeClient"
     archive_format = "tgz"
 
@@ -131,15 +130,14 @@ class CfdeClient():
                     be called instead.
                     **Default**: ``None``.
         """
+        self.service_instance = service_instance
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
-        self.__native_client = fair_research_login.NativeClient(
-            client_id=self.client_id, app_name=self.app_name,
-            default_scopes=self.scopes)
+        self.__native_client = fair_research_login.NativeClient(client_id=self.client_id,
+                                                                app_name=self.app_name)
         self.last_flow_run = {}
         # Fetch dynamic config info
-        self.service_instance = service_instance
         self.tokens = tokens or {}
         # Set to true when self.check() passes
         self.ready = False
@@ -152,7 +150,7 @@ class CfdeClient():
     def tokens(self):
         if not self.__tokens:
             try:
-                self.__tokens = self.__native_client.load_tokens_by_scope()
+                self.__tokens = self.__native_client.load_tokens_by_scope(requested_scopes=self.scopes)
             except fair_research_login.LoadError:
                 raise exc.NotLoggedIn("Client has no tokens, either call login() "
                                       "or supply tokens to client on init.")
@@ -172,8 +170,9 @@ class CfdeClient():
         See help(fair_research_login.NativeClient.login) for a full list of kwargs.
         """
         logger.info("Initiating Native App Login...")
+        logger.debug(f"Requesting Scopes: {self.scopes}")
+        login_kwargs["requested_scopes"] = login_kwargs.get("requested_scopes", self.scopes)
         self.__native_client.login(**login_kwargs)
-        logger.debug(f"Logged in with tokens: {self.tokens.keys()}")
 
     def logout(self):
         """Log out and revoke this client's tokens. This object will no longer
@@ -189,6 +188,20 @@ class CfdeClient():
             return False
 
     @property
+    def scopes(self):
+        return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope, self.flow_scope]
+
+    @property
+    def gcs_https_scope(self):
+        remote_ep = self.remote_config["FLOWS"][self.service_instance]["cfde_ep_id"]
+        return f"https://auth.globus.org/scopes/{remote_ep}/https"
+
+    @property
+    def flow_scope(self):
+        flow_id = self.remote_config["FLOWS"][self.service_instance]["flow_id"]
+        return f"https://auth.globus.org/scopes/{flow_id}/flow_{flow_id.replace('-', '_')}_user"
+
+    @property
     def remote_config(self):
         """Currently there is a problem with GCS not downloading files correctly.
         For now, instead of downloading the config dynamically, we'll just return
@@ -197,7 +210,7 @@ class CfdeClient():
             return self.__remote_config
         try:
             dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINKS"][self.service_instance],
-                                     headers={'X-Requested-With': 'XMLHttpRequest'})
+                                     headers={"X-Requested-With": "XMLHttpRequest"})
             if dconf_res.status_code >= 300:
                 raise ValueError("Unable to download required configuration: Error {}: {}"
                                  .format(dconf_res.status_code, dconf_res.content))
@@ -220,26 +233,26 @@ class CfdeClient():
     def flow_client(self):
         if self.__flow_client:
             return self.__flow_client
-        flows_token_map = {scope: token["access_token"] for scope, token in self.tokens.items()}
         automate_authorizer = self.__native_client.get_authorizer(
             self.tokens[globus_automate_client.flows_client.MANAGE_FLOWS_SCOPE])
-        # The flows client requires both a token map of flows it can call, in addition to
-        # its own authorizer to talk to the core automate service. Ideally, this would be
-        # cleaner so we wouldn't have to track the tokens and authorizer separately.
-        self.__flow_client = globus_automate_client.FlowsClient(
-            flows_token_map, self.client_id, "flows_client",
-            app_name=self.app_name,
-            base_url="https://flows.automate.globus.org",
-            authorizer=automate_authorizer
+        flow_token = self.tokens[self.flow_scope]['access_token']
+
+        def get_flow_authorizer(*args, **kwargs):
+            return globus_sdk.AccessTokenAuthorizer(flow_token)
+
+        self.__flow_client = globus_automate_client.FlowsClient.new_client(
+            self.client_id, get_flow_authorizer, automate_authorizer,
         )
         return self.__flow_client
 
     @property
     def https_authorizer(self):
+        """Get the https authorizer for downloading/uploading data from the GCS instance.
+        This can differ between the dev/staging/prod machines"""
         try:
-            return self.__native_client.get_authorizers_by_scope()[CONFIG["HTTP_SCOPE"]]
+            return self.__native_client.get_authorizers_by_scope()[self.gcs_https_scope]
         except (fair_research_login.LoadError, KeyError):
-            at = self.tokens[CONFIG["HTTPS_SCOPE"]]["access_token"]
+            at = self.tokens[self.gcs_https_scope]["access_token"]
             return globus_sdk.AccessTokenAuthorizer(at)
 
     def check(self, raise_exception=True):
@@ -497,16 +510,14 @@ class CfdeClient():
             data_url = "{}{}".format(flow_info["cfde_ep_url"], dest_path)
 
             with open(data_path, 'rb') as bag_file:
-                bag_data = bag_file.read()
-
-            put_res = requests.put(data_url, data=bag_data, headers=headers)
+                put_res = requests.put(data_url, data=bag_file, headers=headers)
 
             # Regenerate headers on 401
             if put_res.status_code == 401:
                 https_authorizer.handle_missing_authorization()
                 https_authorizer.set_authorization_header(headers)
-                put_res = requests.put(data_url, data=bag_data, headers=headers)
-
+                with open(data_path, 'rb') as bag_file:
+                    put_res = requests.put(data_url, data=bag_file, headers=headers)
             # Error message on failed PUT or any unexpected response
             if put_res.status_code >= 300:
                 return {
