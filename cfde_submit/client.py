@@ -193,64 +193,28 @@ class CfdeClient():
         """Currently there is a problem with GCS not downloading files correctly.
         For now, instead of downloading the config dynamically, we'll just return
         a static config"""
-        return {
-          "CATALOGS": {
-            "prod": "prod",
-            "staging": "staging",
-            "dev": "dev"
-          },
-          "FLOWS": {
-            "prod": {
-              "flow_id": "",
-              "success_step": "SuccessState",
-              "failure_step": "FailureState",
-              "error_step": "ErrorState",
-              "cfde_ep_id": "d4c89edc-a22c-4bc3-bfa2-bca5fd19b404",
-              "cfde_ep_path": "/CFDE/data/",
-              "cfde_ep_url": "https://g-882990.aa98d.08cc.data.globus.org"
-            },
-            "staging": {
-              "flow_id": "86453578-04b5-4c72-9188-8a6db9804135",
-              "success_step": "SuccessState",
-              "failure_step": "FailureState",
-              "error_step": "ErrorState",
-              "cfde_ep_id": "922ee14d-49b7-4d69-8f1c-8e2ff8207542",
-              "cfde_ep_path": "/CFDE/data/",
-              "cfde_ep_url": "https://g-3368fe.c0aba.03c0.data.globus.org"
-            },
-            "dev": {
-              "flow_id": "22a2a15c-c36a-4269-8802-b578dc4483e3",
-              "success_step": "SuccessState",
-              "failure_step": "FailureState",
-              "error_step": "ErrorState",
-              "cfde_ep_id": "36530efa-a1e3-45dc-a6e7-9560a8e9ac49",
-              "cfde_ep_path": "/CFDE/data/",
-              "cfde_ep_url": "https://g-c7e94.f19a4.5898.data.globus.org"
-            }
-          },
-          "MIN_VERSION": "0.1.3"
-        }
-        # if self.__remote_config:
-        #     return self.__remote_config
-        # try:
-        #     dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINKS"][self.service_instance])
-        #     if dconf_res.status_code >= 300:
-        #         raise ValueError("Unable to download required configuration: Error {}: {}"
-        #                          .format(dconf_res.status_code, dconf_res.content))
-        #     self.__remote_config = dconf_res.json()
-        #     return self.__remote_config
-        # except KeyError as e:
-        #     raise ValueError("Flow configuration for service_instance '{}' not found"
-        #                      .format(self.service_instance)) from e
-        # except json.JSONDecodeError:
-        #     if b"<!DOCTYPE html>" in dconf_res.content:
-        #         raise ValueError("Unable to authenticate with Globus: "
-        #                          "HTML authentication flow detected")
-        #     else:
-        #         raise ValueError("Flow configuration not JSON: \n{}".format(dconf_res.content))
-        # except Exception:
-        #     # TODO: Are there other exceptions that need to be handled/translated?
-        #     raise
+        if self.__remote_config:
+            return self.__remote_config
+        try:
+            dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINKS"][self.service_instance],
+                                     headers={'X-Requested-With': 'XMLHttpRequest'})
+            if dconf_res.status_code >= 300:
+                raise ValueError("Unable to download required configuration: Error {}: {}"
+                                 .format(dconf_res.status_code, dconf_res.content))
+            self.__remote_config = dconf_res.json()
+            return self.__remote_config
+        except KeyError as e:
+            raise ValueError("Flow configuration for service_instance '{}' not found"
+                             .format(self.service_instance)) from e
+        except json.JSONDecodeError:
+            if b"<!DOCTYPE html>" in dconf_res.content:
+                raise ValueError("Unable to authenticate with Globus: "
+                                 "HTML authentication flow detected")
+            else:
+                raise ValueError("Flow configuration not JSON: \n{}".format(dconf_res.content))
+        except Exception:
+            # TODO: Are there other exceptions that need to be handled/translated?
+            raise
 
     @property
     def flow_client(self):
