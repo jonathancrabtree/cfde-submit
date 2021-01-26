@@ -114,7 +114,6 @@ def ts_validate(data_path, schema=None):
 class CfdeClient():
     """The CfdeClient enables easily using the CFDE tools to ingest data."""
     client_id = "417301b1-5101-456a-8a27-423e71a2ae26"
-    scopes = CONFIG["ALL_SCOPES"]
     app_name = "CfdeClient"
     archive_format = "tgz"
 
@@ -131,6 +130,7 @@ class CfdeClient():
                     be called instead.
                     **Default**: ``None``.
         """
+        self.service_instance = service_instance
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
@@ -139,7 +139,6 @@ class CfdeClient():
             default_scopes=self.scopes)
         self.last_flow_run = {}
         # Fetch dynamic config info
-        self.service_instance = service_instance
         self.tokens = tokens or {}
         # Set to true when self.check() passes
         self.ready = False
@@ -187,6 +186,14 @@ class CfdeClient():
             return bool(self.tokens)
         except exc.NotLoggedIn:
             return False
+
+    @property
+    def scopes(self):
+        base_scopes = CONFIG["ALL_SCOPES"]
+        # This scope is the GCS server responsible for the data
+        remote_ep = self.remote_config['FLOWS'][self.service_instance]['cfde_ep_id']
+        http_server_scope = f'https://auth.globus.org/scopes/{remote_ep}/https'
+        return base_scopes + [http_server_scope]
 
     @property
     def remote_config(self):
@@ -497,16 +504,14 @@ class CfdeClient():
             data_url = "{}{}".format(flow_info["cfde_ep_url"], dest_path)
 
             with open(data_path, 'rb') as bag_file:
-                bag_data = bag_file.read()
-
-            put_res = requests.put(data_url, data=bag_data, headers=headers)
+                put_res = requests.put(data_url, data=bag_file, headers=headers)
 
             # Regenerate headers on 401
             if put_res.status_code == 401:
                 https_authorizer.handle_missing_authorization()
                 https_authorizer.set_authorization_header(headers)
-                put_res = requests.put(data_url, data=bag_data, headers=headers)
-
+                with open(data_path, 'rb') as bag_file:
+                    put_res = requests.put(data_url, data=bag_file, headers=headers)
             # Error message on failed PUT or any unexpected response
             if put_res.status_code >= 300:
                 return {

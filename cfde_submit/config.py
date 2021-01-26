@@ -45,7 +45,8 @@ CONFIG = {
             "cfde_submit": {"level": "DEBUG", "handlers": ["console"]},
         },
     },
-    # Automate Scopes
+    # This scope lists the GCS server for PROD that holds config data. It MAY be different
+    # from the server responsible for holding data (for instance --service-instance dev)
     "HTTPS_SCOPE": "https://auth.globus.org/scopes/0e57d793-f1ac-4eeb-a30f-643b082d68ec/https",
     "AUTOMATE_SCOPES": list(globus_automate_client.flows_client.ALL_FLOW_SCOPES),
     # Format for BDBag archives
