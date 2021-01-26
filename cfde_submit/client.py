@@ -134,9 +134,8 @@ class CfdeClient():
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
-        self.__native_client = fair_research_login.NativeClient(
-            client_id=self.client_id, app_name=self.app_name,
-            default_scopes=self.scopes)
+        self.__native_client = fair_research_login.NativeClient(client_id=self.client_id,
+                                                                app_name=self.app_name)
         self.last_flow_run = {}
         # Fetch dynamic config info
         self.tokens = tokens or {}
@@ -171,8 +170,8 @@ class CfdeClient():
         See help(fair_research_login.NativeClient.login) for a full list of kwargs.
         """
         logger.info("Initiating Native App Login...")
+        login_kwargs['requested_scopes'] = login_kwargs.get('requested_scopes', self.scopes)
         self.__native_client.login(**login_kwargs)
-        logger.debug(f"Logged in with tokens: {self.tokens.keys()}")
 
     def logout(self):
         """Log out and revoke this client's tokens. This object will no longer
@@ -189,11 +188,12 @@ class CfdeClient():
 
     @property
     def scopes(self):
-        base_scopes = CONFIG["ALL_SCOPES"]
-        # This scope is the GCS server responsible for the data
+        return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope]
+
+    @property
+    def gcs_https_scope(self):
         remote_ep = self.remote_config['FLOWS'][self.service_instance]['cfde_ep_id']
-        http_server_scope = f'https://auth.globus.org/scopes/{remote_ep}/https'
-        return base_scopes + [http_server_scope]
+        return f'https://auth.globus.org/scopes/{remote_ep}/https'
 
     @property
     def remote_config(self):
@@ -243,10 +243,12 @@ class CfdeClient():
 
     @property
     def https_authorizer(self):
+        """Get the https authorizer for downloading/uploading data from the GCS instance.
+        This can differ between the dev/staging/prod machines"""
         try:
-            return self.__native_client.get_authorizers_by_scope()[CONFIG["HTTP_SCOPE"]]
+            return self.__native_client.get_authorizers_by_scope()[self.gcs_https_scope]
         except (fair_research_login.LoadError, KeyError):
-            at = self.tokens[CONFIG["HTTPS_SCOPE"]]["access_token"]
+            at = self.tokens[self.gcs_https_scope]["access_token"]
             return globus_sdk.AccessTokenAuthorizer(at)
 
     def check(self, raise_exception=True):
