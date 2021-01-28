@@ -114,6 +114,7 @@ def ts_validate(data_path, schema=None):
 class CfdeClient():
     """The CfdeClient enables easily using the CFDE tools to ingest data."""
     client_id = "417301b1-5101-456a-8a27-423e71a2ae26"
+    config_filename = os.path.expanduser("~/.cfde-submit.cfg")
     app_name = "CfdeClient"
     archive_format = "tgz"
 
@@ -134,8 +135,10 @@ class CfdeClient():
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
+        self.local_config = fair_research_login.ConfigParserTokenStorage(filename=self.config_filename)
         self.__native_client = fair_research_login.NativeClient(client_id=self.client_id,
-                                                                app_name=self.app_name)
+                                                                app_name=self.app_name,
+                                                                token_storage=self.local_config)
         self.last_flow_run = {}
         # Fetch dynamic config info
         self.tokens = tokens or {}
