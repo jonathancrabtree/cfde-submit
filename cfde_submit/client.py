@@ -114,10 +114,11 @@ def ts_validate(data_path, schema=None):
 class CfdeClient():
     """The CfdeClient enables easily using the CFDE tools to ingest data."""
     client_id = "417301b1-5101-456a-8a27-423e71a2ae26"
+    config_filename = os.path.expanduser("~/.cfde-submit.cfg")
     app_name = "CfdeClient"
     archive_format = "tgz"
 
-    def __init__(self, service_instance="prod", tokens=None):
+    def __init__(self, tokens=None):
         """Create a CfdeClient.
 
         Keyword Arguments:
@@ -130,12 +131,16 @@ class CfdeClient():
                     be called instead.
                     **Default**: ``None``.
         """
-        self.service_instance = service_instance
+        self.__service_instance = os.getenv("CFDE_SUBMIT_SERVICE_INSTANCE", "prod")
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
+        self.local_config = fair_research_login.ConfigParserTokenStorage(
+            filename=self.config_filename
+        )
         self.__native_client = fair_research_login.NativeClient(client_id=self.client_id,
-                                                                app_name=self.app_name)
+                                                                app_name=self.app_name,
+                                                                token_storage=self.local_config)
         self.last_flow_run = {}
         # Fetch dynamic config info
         self.tokens = tokens or {}
@@ -165,6 +170,18 @@ class CfdeClient():
             raise exc.NotLoggedIn("Tokens supplied to CfdeClient are invalid, "
                                   f"They MUST match {self.scopes}")
 
+    @property
+    def service_instance(self):
+        return self.__service_instance
+
+    @service_instance.setter
+    def service_instance(self, new_service_instance):
+        valid_si = ["dev", "staging", "prod"]
+        if new_service_instance not in valid_si:
+            raise exc.CfdeClientException(f"Invalid Service Instance {new_service_instance}, "
+                                          f"must be one of {valid_si}")
+        self.__service_instance = new_service_instance
+
     def login(self, **login_kwargs):
         """Login to the cfde-submit client. This will ensure the user has the correct
         tokens configured but it DOES NOT guarantee they are in the correct group to
@@ -186,7 +203,7 @@ class CfdeClient():
     def is_logged_in(self):
         try:
             return bool(self.tokens)
-        except exc.NotLoggedIn:
+        except (exc.NotLoggedIn, exc.SubmissionsUnavailable):
             return False
 
     @property
@@ -196,11 +213,20 @@ class CfdeClient():
     @property
     def gcs_https_scope(self):
         remote_ep = self.remote_config["FLOWS"][self.service_instance]["cfde_ep_id"]
+        if not remote_ep:
+            logger.error(f"Remote Config on {self.service_instance} did not set 'cfde_ep_id'! "
+                         f"Dataset submissions cannot be run!")
+            raise exc.SubmissionsUnavailable("The remote data server is currently unavailable")
         return f"https://auth.globus.org/scopes/{remote_ep}/https"
 
     @property
     def flow_scope(self):
         flow_id = self.remote_config["FLOWS"][self.service_instance]["flow_id"]
+        if not flow_id:
+            logger.error(f"Remote Config on {self.service_instance} did not set 'flow_id'! "
+                         f"Dataset submissions cannot be run!")
+            raise exc.SubmissionsUnavailable("Submissions have temporarily been disabled, "
+                                             "please check with your Administrator.")
         return f"https://auth.globus.org/scopes/{flow_id}/flow_{flow_id.replace('-', '_')}_user"
 
     @property
