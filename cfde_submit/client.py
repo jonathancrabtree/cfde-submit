@@ -135,7 +135,9 @@ class CfdeClient():
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
-        self.local_config = fair_research_login.ConfigParserTokenStorage(filename=self.config_filename)
+        self.local_config = fair_research_login.ConfigParserTokenStorage(
+            filename=self.config_filename
+        )
         self.__native_client = fair_research_login.NativeClient(client_id=self.client_id,
                                                                 app_name=self.app_name,
                                                                 token_storage=self.local_config)
@@ -201,7 +203,7 @@ class CfdeClient():
     def is_logged_in(self):
         try:
             return bool(self.tokens)
-        except exc.NotLoggedIn:
+        except (exc.NotLoggedIn, exc.SubmissionsUnavailable):
             return False
 
     @property
@@ -211,11 +213,20 @@ class CfdeClient():
     @property
     def gcs_https_scope(self):
         remote_ep = self.remote_config["FLOWS"][self.service_instance]["cfde_ep_id"]
+        if not remote_ep:
+            logger.error(f"Remote Config on {self.service_instance} did not set 'cfde_ep_id'! "
+                         f"Dataset submissions cannot be run!")
+            raise exc.SubmissionsUnavailable("The remote data server is currently unavailable")
         return f"https://auth.globus.org/scopes/{remote_ep}/https"
 
     @property
     def flow_scope(self):
         flow_id = self.remote_config["FLOWS"][self.service_instance]["flow_id"]
+        if not flow_id:
+            logger.error(f"Remote Config on {self.service_instance} did not set 'flow_id'! "
+                         f"Dataset submissions cannot be run!")
+            raise exc.SubmissionsUnavailable("Submissions have temporarily been disabled, "
+                                             "please check with your Administrator.")
         return f"https://auth.globus.org/scopes/{flow_id}/flow_{flow_id.replace('-', '_')}_user"
 
     @property
