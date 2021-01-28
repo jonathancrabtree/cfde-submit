@@ -33,10 +33,9 @@ def cli():
 @click.option("--force-http", is_flag=True, default=False)  # , hidden=True)
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
-@click.option("--service-instance", default=None)  # , hidden=True)
 def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
         dry_run, test_submission, verbose, server, force_http,
-        bag_kwargs_file, client_state_file, service_instance):
+        bag_kwargs_file, client_state_file):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
     # Get any saved parameters
     if not client_state_file:
@@ -103,7 +102,9 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
     try:
         if verbose:
             print("Initializing Flow")
-        cfde = CfdeClient(service_instance=service_instance)
+        cfde = CfdeClient()
+        if cfde.service_instance != "prod":
+            click.secho(f"Running on service '{cfde.service_instance}'", fg="yellow")
         if not cfde.is_logged_in():
             cfde.login()
         if verbose:
@@ -125,7 +126,7 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
         else:
             print(start_res["message"])
             if not dry_run:
-                state["service_instance"] = service_instance
+                state["service_instance"] = cfde.service_instance
                 state["flow_id"] = start_res["flow_id"]
                 state["flow_instance_id"] = start_res["flow_instance_id"]
                 state["http_link"] = start_res["http_link"]
@@ -147,8 +148,7 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
 @click.option("--flow-instance-id", default=None, show_default=True)
 @click.option("--raw", is_flag=True, default=False)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
-@click.option("--service-instance", default=None)  # , hidden=True)
-def status(flow_id, flow_instance_id, raw, client_state_file, service_instance):
+def status(flow_id, flow_instance_id, raw, client_state_file):
     """Check the status of a Flow."""
     if not flow_id or not flow_instance_id:
         if not client_state_file:
@@ -158,14 +158,15 @@ def status(flow_id, flow_instance_id, raw, client_state_file, service_instance):
                 client_state = json.load(f)
             flow_id = flow_id or client_state.get("flow_id")
             flow_instance_id = flow_instance_id or client_state.get("flow_instance_id")
-            service_instance = service_instance or client_state.get("service_instance")
             if not flow_id or not flow_instance_id:
                 raise ValueError("flow_id or flow_instance_id not found")
         except (FileNotFoundError, ValueError):
             print("Flow not started and flow-id or flow-instance-id not specified")
             return
     try:
-        cfde = CfdeClient(service_instance=service_instance)
+        cfde = CfdeClient()
+        if cfde.service_instance != "prod":
+            click.secho(f"Running on service '{cfde.service_instance}'", fg="yellow")
         status_res = cfde.check_status(flow_id, flow_instance_id, raw=True)
     except Exception as e:
         if raw:
@@ -190,10 +191,11 @@ def login(force_login, no_browser, no_local_server):
     a CfdeClient. The Client is then discarded.
     """
     cfde = CfdeClient()
+    if cfde.service_instance != "prod":
+        click.secho(f"Running on service '{cfde.service_instance}'", fg="yellow")
     if cfde.is_logged_in():
         click.secho("You are already logged in")
     else:
-        cfde = CfdeClient()
         cfde.login(force=force_login, no_browser=no_browser, no_local_server=no_local_server)
         click.secho("You are authenticated and your tokens have been cached.", fg='green')
     try:
@@ -205,8 +207,9 @@ def login(force_login, no_browser, no_local_server):
 @cli.command()
 def logout():
     """Log out and revoke your tokens."""
-    if CfdeClient().is_logged_in():
-        CfdeClient().logout()
+    cfde = CfdeClient()
+    if cfde.is_logged_in():
+        cfde.logout()
         click.secho("You have been logged out", fg='green')
     else:
         click.secho("You are not logged in")

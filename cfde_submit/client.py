@@ -118,7 +118,7 @@ class CfdeClient():
     app_name = "CfdeClient"
     archive_format = "tgz"
 
-    def __init__(self, service_instance="prod", tokens=None):
+    def __init__(self, tokens=None):
         """Create a CfdeClient.
 
         Keyword Arguments:
@@ -131,7 +131,7 @@ class CfdeClient():
                     be called instead.
                     **Default**: ``None``.
         """
-        self.service_instance = service_instance
+        self.__service_instance = os.getenv("CFDE_SUBMIT_SERVICE_INSTANCE", "prod")
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
@@ -167,6 +167,18 @@ class CfdeClient():
         if new_tokens and set(new_tokens) != set(self.scopes):
             raise exc.NotLoggedIn("Tokens supplied to CfdeClient are invalid, "
                                   f"They MUST match {self.scopes}")
+
+    @property
+    def service_instance(self):
+        return self.__service_instance
+
+    @service_instance.setter
+    def service_instance(self, new_service_instance):
+        valid_si = ["dev", "staging", "prod"]
+        if new_service_instance not in valid_si:
+            raise exc.CfdeClientException(f"Invalid Service Instance {new_service_instance}, "
+                                          f"must be one of {valid_si}")
+        self.__service_instance = new_service_instance
 
     def login(self, **login_kwargs):
         """Login to the cfde-submit client. This will ensure the user has the correct
