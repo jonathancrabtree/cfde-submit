@@ -109,13 +109,21 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
             cfde.login()
         if verbose:
             print("CfdeClient initialized, starting Flow")
-        start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
-                                           schema=schema, dataset_acls=dataset_acls,
-                                           output_dir=output_dir, delete_dir=delete_dir,
-                                           handle_git_repos=(not ignore_git),
-                                           server=server, dry_run=dry_run,
-                                           test_sub=test_submission, verbose=verbose,
-                                           force_http=force_http, **bag_kwargs)
+        resp = input(f"Submit datapackage {os.path.basename(data_path)} using {dcc_id}? (y/N)? > ")
+        if resp in ["y", "yes", "Y", "Yes", "aye", "yarr"]:
+            start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
+                                               schema=schema, dataset_acls=dataset_acls,
+                                               output_dir=output_dir, delete_dir=delete_dir,
+                                               handle_git_repos=(not ignore_git),
+                                               server=server, dry_run=dry_run,
+                                               test_sub=test_submission, verbose=verbose,
+                                               force_http=force_http, **bag_kwargs)
+        else:
+            click.secho("Aborted. No data submitted.", fg="yellow")
+            return
+    except exc.SubmissionsUnavailable as su:
+        click.secho(str(su), fg='red')
+        return
     except Exception as e:
         logger.exception(e)
         print("Error while starting Flow: {}".format(repr(e)))
