@@ -229,7 +229,7 @@ class CfdeClient():
                 raise
 
     def start_deriva_flow(self, data_path, dcc_id, catalog_id=None,
-                          schema=None, server=None, dataset_acls=None,
+                          schema=None, server=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
                           dry_run=False, test_sub=False, verbose=False, **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
@@ -247,8 +247,6 @@ class CfdeClient():
                     Default None, to only validate against the declared TableSchema.
             server (str): The DERIVA server to ingest to.
                     Default None, to use the Action Provider-set default.
-            dataset_acls (dict): The DERIVA ACL(s) to set on the final dataset.
-                    Default None, to use the CFDE default ACLs.
             output_dir (str): The path to create an output directory in. The resulting
                     BDBag archive will be named after this directory.
                     If not set, the directory will be turned into a BDBag in-place.
@@ -298,8 +296,8 @@ class CfdeClient():
 
         # Coerces the BDBag path to a .zip archive
         data_path = validation.validate_user_submission(
-            data_path, schema, output_dir=None, delete_dir=False,
-            handle_git_repos=True, bdbag_kwargs=None
+            data_path, schema, output_dir=output_dir, delete_dir=delete_dir,
+            handle_git_repos=handle_git_repos, bdbag_kwargs=kwargs
         )
 
         flow_info = self.remote_config["FLOWS"][self.service_instance]

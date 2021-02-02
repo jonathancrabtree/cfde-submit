@@ -21,7 +21,6 @@ def cli():
 @click.option("--dcc-id", "--dcc", default=None, show_default=True)
 @click.option("--catalog", default=None, show_default=True)
 @click.option("--schema", default=None, show_default=True)
-@click.option("--acl-file", default=None, show_default=True, type=click.Path(exists=True))
 @click.option("--output-dir", default=None, show_default=True, type=click.Path(exists=False))
 @click.option("--delete-dir/--keep-dir", is_flag=True, default=False, show_default=True)
 @click.option("--ignore-git/--handle-git", is_flag=True, default=False, show_default=True)
@@ -56,12 +55,6 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
             bag_kwargs = json.load(f)
     else:
         bag_kwargs = {}
-    # Read acl_file if provided
-    if acl_file:
-        with open(acl_file) as f:
-            dataset_acls = json.load(f)
-    else:
-        dataset_acls = None
 
     # Determine DCC ID to use
     if verbose:
@@ -112,7 +105,7 @@ def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ig
         resp = input(f"Submit datapackage {os.path.basename(data_path)} using {dcc_id}? (y/N)? > ")
         if resp in ["y", "yes", "Y", "Yes", "aye", "yarr"]:
             start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
-                                               schema=schema, dataset_acls=dataset_acls,
+                                               schema=schema,
                                                output_dir=output_dir, delete_dir=delete_dir,
                                                handle_git_repos=(not ignore_git),
                                                server=server, dry_run=dry_run,
