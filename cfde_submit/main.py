@@ -32,7 +32,7 @@ def cli():
 @click.option("--force-http", is_flag=True, default=False)  # , hidden=True)
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)  # , hidden=True)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
-def run(data_path, dcc_id, catalog, schema, acl_file, output_dir, delete_dir, ignore_git,
+def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         dry_run, test_submission, verbose, server, force_http,
         bag_kwargs_file, client_state_file):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
