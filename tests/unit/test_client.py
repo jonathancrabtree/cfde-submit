@@ -50,11 +50,11 @@ def test_start_deriva_flow_http(logged_in, mock_validation, mock_remote_config, 
 
     _, args, kwargs = mock_flows_client.run_flow.mock_calls[0]
     flow_id, flow_scope, flow_input = args
-    assert flow_id == 'dev_flow_id'
-    assert flow_scope == 'https://auth.globus.org/scopes/dev_flow_id/flow_dev_flow_id_user'
+    assert flow_id == 'prod_flow_id'
+    assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
-        'cfde_ep_id': 'dev_cfde_ep_id',
-        'data_url': 'https://dev-gcs-inst.data.globus.org/CFDE/data/dev/bagged_path.zip',
+        'cfde_ep_id': 'prod_cfde_ep_id',
+        'data_url': 'https://prod-gcs-inst.data.globus.org/CFDE/data/prod/bagged_path.zip',
         'dcc_id': 'my_dcc',
         'source_endpoint_id': False,
         'test_sub': False
@@ -73,15 +73,15 @@ def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, m
 
     _, args, kwargs = mock_flows_client.run_flow.mock_calls[0]
     flow_id, flow_scope, flow_input = args
-    assert flow_id == 'dev_flow_id'
-    assert flow_scope == 'https://auth.globus.org/scopes/dev_flow_id/flow_dev_flow_id_user'
+    assert flow_id == 'prod_flow_id'
+    assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
-        'cfde_ep_id': 'dev_cfde_ep_id',
+        'cfde_ep_id': 'prod_cfde_ep_id',
         'dcc_id': 'my_dcc',
         'source_endpoint_id': 'local_gcp_endpoint_id',
         'test_sub': False,
-        'cfde_ep_path': '/CFDE/data/dev/bagged_path.zip',
-        'cfde_ep_url': 'https://dev-gcs-inst.data.globus.org',
+        'cfde_ep_path': '/CFDE/data/prod/bagged_path.zip',
+        'cfde_ep_url': 'https://prod-gcs-inst.data.globus.org',
         'is_directory': False,
         'source_path': '/home/cfde-user/bagged_path.zip'
     }
