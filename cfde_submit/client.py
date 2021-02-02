@@ -564,6 +564,7 @@ class CfdeClient():
             flow_id = flow_info["flow_id"]
             flow_input = {
                 "source_endpoint_id": False,
+                "cfde_ep_id": flow_info["cfde_ep_id"],
                 "data_url": data_url,
                 "test_sub": test_sub,
                 "dcc_id": dcc_id
