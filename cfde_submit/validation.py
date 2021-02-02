@@ -105,6 +105,32 @@ def ts_validate(data_path, schema=None):
 
 def validate_user_submission(data_path, schema, output_dir=None, delete_dir=False,
                              handle_git_repos=True, bdbag_kwargs=None):
+    """
+    Arguments:
+        data_path (str): The path to the data to ingest into DERIVA. The path can be:
+                1) A directory to be formatted into a BDBag
+                2) A Git repository to be copied into a BDBag
+                3) A premade BDBag directory
+                4) A premade BDBag in an archive file
+        schema (str): The named schema or schema file link to validate data against.
+                Default None, to only validate against the declared TableSchema.
+        output_dir (str): The path to create an output directory in. The resulting
+                BDBag archive will be named after this directory.
+                If not set, the directory will be turned into a BDBag in-place.
+                For Git repositories, this is automatically set, but can be overridden.
+                If data_path is a file, this has no effect.
+                This dir MUST NOT be in the `data_path` directory or any subdirectories.
+                Default None.
+        delete_dir (bool): Should the output_dir be deleted after submission?
+                Has no effect if output_dir is not specified.
+                For Git repositories, this is always True.
+                Default False.
+        handle_git_repos (bool): Should Git repositories be detected and handled?
+                When this is False, Git repositories are handled as simple directories
+                instead of Git repositories.
+                Default True.
+        bdbag_kwargs (dict): Extra args to pass to bdbag
+    """
     bdbag_kwargs = bdbag_kwargs or {}
     data_path = os.path.abspath(data_path)
     if not os.path.exists(data_path):
@@ -171,7 +197,7 @@ def validate_user_submission(data_path, schema, output_dir=None, delete_dir=Fals
     # If dir (must be BDBag at this point), archive
     if os.path.isdir(data_path):
         logger.debug("Archiving BDBag at '{}' using '{}'"
-                  .format(data_path, CONFIG["ARCHIVE_FORMAT"]))
+                     .format(data_path, CONFIG["ARCHIVE_FORMAT"]))
         new_data_path = bdbag_api.archive_bag(data_path, CONFIG["ARCHIVE_FORMAT"])
         logger.debug("BDBag archived to file '{}'".format(new_data_path))
         # If requested (e.g. Git repo copied dir), delete data dir

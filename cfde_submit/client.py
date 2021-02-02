@@ -351,8 +351,6 @@ class CfdeClient():
                                                                 sort_keys=True)))
         # Get Flow scope
         flow_id = flow_info["flow_id"]
-        flow_def = self.flow_client.get_flow(flow_id)
-        flow_scope = flow_def["globus_auth_scope"]
         # Start Flow
         if verbose:
             print("Starting Flow - Submitting data")
