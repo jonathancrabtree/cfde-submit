@@ -11,6 +11,11 @@ class CfdeClientException(Exception):
     pass
 
 
+class ValidationException(Exception):
+    """Base Exception for client"""
+    pass
+
+
 class RemoteConfigException(CfdeClientException):
     """There was a problem with the catalog"""
     pass

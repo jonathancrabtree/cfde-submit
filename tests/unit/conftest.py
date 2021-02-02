@@ -3,7 +3,7 @@ import pytest
 import fair_research_login
 import globus_sdk
 
-from cfde_submit import CONFIG, version
+from cfde_submit import CONFIG, version, validation, globus_http
 import cfde_submit
 
 # Maximum output logging!
@@ -26,8 +26,7 @@ def mock_remote_config(monkeypatch):
     For the day you want to test fetching remote configs:
     https://stackoverflow.com/questions/38748257/disable-autouse-fixtures-on-specific-pytest-marks
     """
-    catalog_keys = ["flow_id", "success_step", "failure_step", "error_step", "cfde_ep_id",
-                    "cfde_ep_path", "cfde_ep_url"]
+    catalog_keys = ["flow_id", "success_step", "failure_step", "error_step", "cfde_ep_id"]
     mock_catalog = {
         "CATALOGS": {
             "prod": "prod",
@@ -41,6 +40,10 @@ def mock_remote_config(monkeypatch):
         },
         "MIN_VERSION": version.__version__
     }
+    for service in mock_catalog["FLOWS"].keys():
+        mock_catalog["FLOWS"][service]["cfde_ep_path"] = f'/CFDE/data/{service}/'
+        mock_catalog["FLOWS"][service]["cfde_ep_url"] = f'https://{service}' \
+                                                        f'-gcs-inst.data.globus.org'
     remote_config = PropertyMock(return_value=mock_catalog)
     monkeypatch.setattr(cfde_submit.CfdeClient, 'remote_config', remote_config)
     return remote_config
@@ -53,6 +56,35 @@ def mock_flows_client(monkeypatch):
     return cfde_submit.CfdeClient.flow_client
 
 
+@pytest.fixture(autouse=True)
+def mock_gcp_uninstalled(monkeypatch):
+    """Mock the state of the user's machine where Globus Connect Personal is
+    NOT installed. autouse=True due to this being the more likely state of the
+    user's machine."""
+    gcp_inst = Mock()
+    gcp_inst.endpoint_id = None
+    monkeypatch.setattr(globus_sdk, 'LocalGlobusConnectPersonal', Mock(return_value=gcp_inst))
+    return gcp_inst
+
+
+@pytest.fixture
+def mock_gcp_installed(mock_gcp_uninstalled):
+    mock_gcp_uninstalled.endpoint_id = 'local_gcp_endpoint_id'
+    return mock_gcp_uninstalled
+
+
+@pytest.fixture
+def mock_upload(monkeypatch):
+    monkeypatch.setattr(globus_http, 'upload', Mock())
+    return globus_http.upload
+
+
+@pytest.fixture
+def mock_validation(monkeypatch):
+    monkeypatch.setattr(validation, 'validate_user_submission', Mock())
+    return validation.validate_user_submission
+
+
 @pytest.fixture
 def logged_out(monkeypatch):
     load = Mock(side_effect=fair_research_login.LoadError())
@@ -61,10 +93,15 @@ def logged_out(monkeypatch):
 
 
 @pytest.fixture
-def logged_in(monkeypatch):
+def logged_in(monkeypatch, mock_remote_config):
+    scopes = [
+        'https://auth.globus.org/scopes/dev_cfde_ep_id/https',
+        'https://auth.globus.org/scopes/staging_cfde_ep_id/https',
+        'https://auth.globus.org/scopes/prod_cfde_ep_id/https',
+    ] + CONFIG["ALL_SCOPES"]
     mock_tokens = {
         scope: dict(access_token=f"{scope}_access_token")
-        for scope in CONFIG["ALL_SCOPES"]
+        for scope in scopes
     }
     load = Mock(return_value=mock_tokens)
     monkeypatch.setattr(fair_research_login.NativeClient, "load_tokens_by_scope", load)

@@ -2,113 +2,16 @@ import json
 import os
 import logging.config
 from packaging.version import parse as parse_version
-import shutil
-
-from bdbag import bdbag_api
-from datapackage import Package
 import fair_research_login
-import git
 import globus_automate_client
 import globus_sdk
 import requests
-from tableschema.exceptions import CastError
 
-from cfde_submit import CONFIG, exc
+from cfde_submit import CONFIG, exc, globus_http, validation
 from .version import __version__ as VERSION
 
 logging.config.dictConfig(CONFIG["LOGGING"])
 logger = logging.getLogger(__name__)
-
-
-def ts_validate(data_path, schema=None):
-    """Validate a given TableSchema using the Datapackage package.
-
-    Arguments:
-        data_path (str): Path to the TableSchema JSON or BDBag directory
-                or BDBag archive to validate.
-        schema (str): The schema to validate against. If not provided,
-                the data is only validated against the defined TableSchema.
-                Default None.
-
-    Returns:
-        dict: The validation results.
-            is_valid (bool): Is the TableSchema valid?
-            raw_errors (list): The raw Exceptions generated from any validation errors.
-            error (str): A formatted error message about any validation errors.
-    """
-    # If data_path is BDBag archive, unarchive to temp dir
-    try:
-        data_path = bdbag_api.extract_bag(data_path, temp=True)
-    # data_path is not archive
-    except RuntimeError:
-        pass
-    # If data_path is dir (incl. if was unarchived), find JSON desc
-    if os.path.isdir(data_path):
-        # If 'data' dir present, search there instead
-        if "data" in os.listdir(data_path):
-            data_path = os.path.join(data_path, "data")
-        # Find .json file (cannot be hidden)
-        desc_file_list = [filename for filename in os.listdir(data_path)
-                          if filename.endswith(".json") and not filename.startswith(".")]
-        if len(desc_file_list) < 1:
-            return {
-                "is_valid": False,
-                "raw_errors": [FileNotFoundError("No TableSchema JSON file found.")],
-                "error": "No TableSchema JSON file found."
-            }
-        elif len(desc_file_list) > 1:
-            return {
-                "is_valid": False,
-                "raw_errors": [RuntimeError("Multiple JSON files found in directory.")],
-                "error": "Multiple JSON files found in directory."
-            }
-        else:
-            data_path = os.path.join(data_path, desc_file_list[0])
-    # data_path should/must be file now (JSON desc)
-    if not os.path.isfile(data_path):
-        return {
-            "is_valid": False,
-            "raw_errors": [ValueError("Path '{}' does not refer to a file".format(data_path))],
-            "error": "Path '{}' does not refer to a file".format(data_path)
-        }
-
-    # Read into Package (identical to DataPackage), return error on failure
-    try:
-        pkg = Package(descriptor=data_path, strict=True)
-    except Exception as e:
-        return {
-            "is_valid": False,
-            "raw_errors": e.errors,
-            "error": "\n".join([str(err) for err in pkg.errors])
-        }
-    # Check and return package validity based on non-Exception-throwing Package validation
-    if not pkg.valid:
-        return {
-            "is_valid": pkg.valid,
-            "raw_errors": pkg.errors,
-            "error": "\n".join([str(err) for err in pkg.errors])
-        }
-    # Perform manual validation as well
-    for resource in pkg.resources:
-        try:
-            resource.read()
-        except CastError as e:
-            return {
-                "is_valid": False,
-                "raw_errors": e.errors,
-                "error": "\n".join([str(err) for err in e.errors])
-            }
-        except Exception as e:
-            return {
-                "is_valid": False,
-                "raw_errors": repr(e),
-                "error": str(e)
-            }
-    return {
-        "is_valid": True,
-        "raw_errors": [],
-        "error": None
-    }
 
 
 class CfdeClient():
@@ -326,7 +229,7 @@ class CfdeClient():
                 raise
 
     def start_deriva_flow(self, data_path, dcc_id, catalog_id=None,
-                          schema=None, server=None, dataset_acls=None,
+                          schema=None, server=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
                           dry_run=False, test_sub=False, verbose=False, **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
@@ -344,8 +247,6 @@ class CfdeClient():
                     Default None, to only validate against the declared TableSchema.
             server (str): The DERIVA server to ingest to.
                     Default None, to use the Action Provider-set default.
-            dataset_acls (dict): The DERIVA ACL(s) to set on the final dataset.
-                    Default None, to use the CFDE default ACLs.
             output_dir (str): The path to create an output directory in. The resulting
                     BDBag archive will be named after this directory.
                     If not set, the directory will be turned into a BDBag in-place.
@@ -384,9 +285,6 @@ class CfdeClient():
         self.check()
         if verbose:
             print("Startup: Validating input")
-        data_path = os.path.abspath(data_path)
-        if not os.path.exists(data_path):
-            raise FileNotFoundError("Path '{}' does not exist".format(data_path))
 
         catalogs = self.remote_config['CATALOGS']
         if catalog_id in catalogs.keys():
@@ -395,104 +293,13 @@ class CfdeClient():
                                  "a named catalog ('{}'). Retry without specifying "
                                  "a schema.".format(schema, catalog_id))
             schema = catalogs[catalog_id]
-        # Pull out known kwargs
-        force_http = kwargs.pop("force_http", False)
 
-        if handle_git_repos:
-            if verbose:
-                print("Checking for a Git repository")
-            # If Git repo, set output_dir appropriately
-            try:
-                repo = git.Repo(data_path, search_parent_directories=True)
-            # Not Git repo
-            except git.InvalidGitRepositoryError:
-                if verbose:
-                    print("Not a Git repo")
-            # Path not found, turn into standard FileNotFoundError
-            except git.NoSuchPathError:
-                raise FileNotFoundError("Path '{}' does not exist".format(data_path))
-            # Is Git repo
-            else:
-                if verbose:
-                    print("Git repo found, collecting metadata")
-                # Needs to not have slash at end - is known Git repo already, slash
-                # interferes with os.path.basename/dirname
-                if data_path.endswith("/"):
-                    data_path = data_path[:-1]
-                # Set output_dir to new dir named with HEAD commit hash
-                new_dir_name = "{}_{}".format(os.path.basename(data_path), str(repo.head.commit))
-                output_dir = os.path.join(os.path.dirname(data_path), new_dir_name)
-                # Delete temp dir after archival
-                delete_dir = True
+        # Coerces the BDBag path to a .zip archive
+        data_path = validation.validate_user_submission(
+            data_path, schema, output_dir=output_dir, delete_dir=delete_dir,
+            handle_git_repos=handle_git_repos, bdbag_kwargs=kwargs
+        )
 
-        # If dir and not already BDBag, make BDBag
-        if os.path.isdir(data_path) and not bdbag_api.is_bag(data_path):
-            if verbose:
-                print("Creating BDBag out of directory '{}'".format(data_path))
-            # If output_dir specified, copy data to output dir first
-            if output_dir:
-                if verbose:
-                    print("Copying data to '{}' before creating BDBag".format(output_dir))
-                output_dir = os.path.abspath(output_dir)
-                # If shutil.copytree is called when the destination dir is inside the source dir
-                # by more than one layer, it will recurse infinitely.
-                # (e.g. /source => /source/dir/dest)
-                # Exactly one layer is technically okay (e.g. /source => /source/dest),
-                # but it's easier to forbid all parent/child dir cases.
-                # Check for this error condition by determining if output_dir is a child
-                # of data_path.
-                if os.path.commonpath([data_path]) == os.path.commonpath([data_path, output_dir]):
-                    raise ValueError("The output_dir ('{}') must not be in data_path ('{}')"
-                                     .format(output_dir, data_path))
-                try:
-                    shutil.copytree(data_path, output_dir)
-                except FileExistsError:
-                    raise FileExistsError(("The output directory must not exist. "
-                                           "Delete '{}' to submit.\nYou can set delete_dir=True "
-                                           "to avoid this issue in the future.").format(output_dir))
-                # Process new dir instead of old path
-                data_path = output_dir
-            # If output_dir not specified, never delete data dir
-            else:
-                delete_dir = False
-            # Make bag
-            bdbag_api.make_bag(data_path, **kwargs)
-            if not bdbag_api.is_bag(data_path):
-                raise ValueError("Failed to create BDBag from {}".format(data_path))
-            elif verbose:
-                print("BDBag created at '{}'".format(data_path))
-
-        # If dir (must be BDBag at this point), archive
-        if os.path.isdir(data_path):
-            if verbose:
-                print("Archiving BDBag at '{}' using '{}'"
-                      .format(data_path, CONFIG["ARCHIVE_FORMAT"]))
-            new_data_path = bdbag_api.archive_bag(data_path, CONFIG["ARCHIVE_FORMAT"])
-            if verbose:
-                print("BDBag archived to file '{}'".format(new_data_path))
-            # If requested (e.g. Git repo copied dir), delete data dir
-            if delete_dir:
-                if verbose:
-                    print("Removing old directory '{}'".format(data_path))
-                shutil.rmtree(data_path)
-            # Overwrite data_path - don't care about dir for uploading
-            data_path = new_data_path
-
-        # Validate TableSchema in BDBag
-        if verbose:
-            print("Validating TableSchema in BDBag '{}'".format(data_path))
-        validation_res = ts_validate(data_path, schema=schema)
-        if not validation_res["is_valid"]:
-            return {
-                "success": False,
-                "error": ("TableSchema invalid due to the following errors: \n{}\n"
-                          .format(validation_res["error"]))
-            }
-        elif verbose:
-            print("Validation successful")
-
-        # Now BDBag is archived file
-        # Set path on destination
         flow_info = self.remote_config["FLOWS"][self.service_instance]
         dest_path = "{}{}".format(flow_info["cfde_ep_path"], os.path.basename(data_path))
 
@@ -503,87 +310,52 @@ class CfdeClient():
                 "message": "Dry run validated successfully. No data was transferred."
             }
 
-        # Set up Flow
-        if verbose:
-            print("Creating input for Flow")
+        logger.debug("Creating input for Flow")
+        flow_input = {
+            "cfde_ep_id": flow_info["cfde_ep_id"],
+            "test_sub": test_sub,
+            "dcc_id": dcc_id
+        }
+        if catalog_id:
+            flow_input["catalog_id"] = str(catalog_id)
+        if server:
+            flow_input["server"] = server
+
         # If local EP exists (and not force_http), can use Transfer
         # Local EP fetched now in case GCP started after Client creation
         local_endpoint = globus_sdk.LocalGlobusConnectPersonal().endpoint_id
+        logger.debug(f'Local endpoint: {local_endpoint}')
+        force_http = kwargs.pop("force_http", False)
         if local_endpoint and not force_http:
-            if verbose:
-                print("Using local Globus Connect Personal Endpoint '{}'".format(local_endpoint))
+            logger.debug("Using local Globus Connect Personal Endpoint '{}'".format(local_endpoint))
             # Populate Transfer fields in Flow
-            flow_id = flow_info["flow_id"]
-            flow_input = {
+            flow_input.update({
                 "source_endpoint_id": local_endpoint,
                 "source_path": data_path,
-                "cfde_ep_id": flow_info["cfde_ep_id"],
                 "cfde_ep_path": dest_path,
                 "cfde_ep_url": flow_info["cfde_ep_url"],
                 "is_directory": False,
-                "test_sub": test_sub,
-                "dcc_id": dcc_id
-            }
-            if catalog_id:
-                flow_input["catalog_id"] = str(catalog_id)
-            if server:
-                flow_input["server"] = server
+            })
         # Otherwise, we must PUT the BDBag on the server
         else:
-            if verbose:
-                print("No Globus Endpoint detected; using HTTP upload instead")
-            headers = {}
-            https_authorizer = self.https_authorizer
-            https_authorizer.set_authorization_header(headers)
+            logger.debug("GCP Not installed, uploading with HTTP PUT instead")
             data_url = "{}{}".format(flow_info["cfde_ep_url"], dest_path)
-
-            with open(data_path, 'rb') as bag_file:
-                put_res = requests.put(data_url, data=bag_file, headers=headers)
-
-            # Regenerate headers on 401
-            if put_res.status_code == 401:
-                https_authorizer.handle_missing_authorization()
-                https_authorizer.set_authorization_header(headers)
-                with open(data_path, 'rb') as bag_file:
-                    put_res = requests.put(data_url, data=bag_file, headers=headers)
-            # Error message on failed PUT or any unexpected response
-            if put_res.status_code >= 300:
-                return {
-                    "success": False,
-                    "error": ("Could not upload BDBag to server (error {}):\n{}"
-                              .format(put_res.status_code, put_res.content))
-                }
-            elif put_res.status_code != 200:
-                print("Warning: HTTP upload returned status code {}, which was unexpected."
-                      .format(put_res.status_code))
-
-            if verbose:
-                print("Upload successful to '{}': {} {}".format(data_url, put_res.status_code,
-                                                                put_res.content))
-
-            flow_id = flow_info["flow_id"]
-            flow_input = {
+            globus_http.upload(data_path, data_url, self.https_authorizer)
+            flow_input.update({
                 "source_endpoint_id": False,
                 "data_url": data_url,
-                "test_sub": test_sub,
-                "dcc_id": dcc_id
-            }
-            if catalog_id:
-                flow_input["catalog_id"] = str(catalog_id)
-            if server:
-                flow_input["server"] = server
+            })
 
         if verbose:
             print("Flow input populated:\n{}".format(json.dumps(flow_input, indent=4,
                                                                 sort_keys=True)))
         # Get Flow scope
-        flow_def = self.flow_client.get_flow(flow_id)
-        flow_scope = flow_def["globus_auth_scope"]
+        flow_id = flow_info["flow_id"]
         # Start Flow
         if verbose:
             print("Starting Flow - Submitting data")
         try:
-            flow_res = self.flow_client.run_flow(flow_id, flow_scope, flow_input)
+            flow_res = self.flow_client.run_flow(flow_id, self.flow_scope, flow_input)
         except globus_sdk.GlobusAPIError as e:
             if e.http_status == 404:
                 return {
