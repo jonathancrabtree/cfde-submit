@@ -87,6 +87,16 @@ def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, m
     }
 
 
+def test_start_deriva_flow_force_http(logged_in, mock_validation, mock_remote_config,
+                                      mock_flows_client, mock_upload, mock_gcp_installed):
+    mock_validation.return_value = "/home/cfde-user/bagged_path.zip"
+    client.CfdeClient().start_deriva_flow("bagged_path.zip", "my_dcc", force_http=True)
+    assert mock_validation.called
+    assert mock_upload.called
+    assert mock_flows_client.get_flow.called
+    assert mock_flows_client.run_flow.called
+
+
 def test_client_invalid_version(logged_in, mock_remote_config):
     mock_remote_config.return_value["MIN_VERSION"] = "9.9.9"
     with pytest.raises(exc.OutdatedVersion):

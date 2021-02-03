@@ -231,7 +231,8 @@ class CfdeClient():
     def start_deriva_flow(self, data_path, dcc_id, catalog_id=None,
                           schema=None, server=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
-                          dry_run=False, test_sub=False, verbose=False, **kwargs):
+                          dry_run=False, test_sub=False, verbose=False,
+                          force_http=False, **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
 
         Arguments:
@@ -325,7 +326,6 @@ class CfdeClient():
         # Local EP fetched now in case GCP started after Client creation
         local_endpoint = globus_sdk.LocalGlobusConnectPersonal().endpoint_id
         logger.debug(f'Local endpoint: {local_endpoint}')
-        force_http = kwargs.pop("force_http", False)
         if local_endpoint and not force_http:
             logger.debug("Using local Globus Connect Personal Endpoint '{}'".format(local_endpoint))
             # Populate Transfer fields in Flow
