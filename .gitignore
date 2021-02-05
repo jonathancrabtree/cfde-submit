@@ -1,6 +1,7 @@
 build/
 dist/
 
+.coverage
 *.egg-info*
 *.log
 *.pyc

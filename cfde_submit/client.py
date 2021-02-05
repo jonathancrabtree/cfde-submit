@@ -94,7 +94,10 @@ class CfdeClient():
         logger.info("Initiating Native App Login...")
         logger.debug(f"Requesting Scopes: {self.scopes}")
         login_kwargs["requested_scopes"] = login_kwargs.get("requested_scopes", self.scopes)
-        self.__native_client.login(**login_kwargs)
+        try:
+            self.__native_client.login(**login_kwargs)
+        except fair_research_login.LoginException as le:
+            raise exc.NotLoggedIn(f"Unable to login: {str(le)}") from le
 
     def logout(self):
         """Log out and revoke this client's tokens. This object will no longer
