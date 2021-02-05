@@ -10,11 +10,11 @@ def test_login(mock_login, logged_out):
     assert mock_login.login.called
 
 
-def test_login_when_logged_in(mock_login, logged_out):
+def test_login_when_logged_in(mock_login, logged_in):
     runner = CliRunner()
     result = runner.invoke(cli, ['login'])
     assert result.exit_code == 0
-    assert mock_login.login.called
+    assert not mock_login.login.called
 
 
 def test_logout(mock_login, logged_in):
@@ -22,6 +22,13 @@ def test_logout(mock_login, logged_in):
     result = runner.invoke(cli, ['logout'])
     assert result.exit_code == 0
     assert mock_login.logout.called
+
+
+def test_logout_when_logged_out(mock_login, logged_out):
+    runner = CliRunner()
+    result = runner.invoke(cli, ['logout'])
+    assert result.exit_code == 0
+    assert not mock_login.logout.called
 
 
 def test_login_user_consent_failure(mock_login, logged_out):
