@@ -209,8 +209,8 @@ def login(force_login, no_browser, no_local_server):
     """Perform the login step (which saves credentials) by initializing
     a CfdeClient. The Client is then discarded.
     """
-    logged_in = CfdeClient().is_logged_in()
-    if logged_in:
+    logger.debug(f'Logged in? {CfdeClient().is_logged_in()}')
+    if CfdeClient().is_logged_in():
         click.secho("You are already logged in")
     else:
         login_user(force_login, no_browser, no_local_server)
