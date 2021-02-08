@@ -376,8 +376,7 @@ class CfdeClient():
 
         return {
             "success": True,
-            "message": ("Started DERIVA ingest Flow\nFlow ID: {}\nFlow Instance ID: {}"
-                        .format(flow_id, flow_res["action_id"])),
+            "message": ("Started DERIVA ingest flow\nYour dataset has been submitted\nYou can check the progress with: cfde-submit status\n"),
             "flow_id": flow_id,
             "flow_instance_id": flow_res["action_id"],
             "cfde_dest_path": dest_path,

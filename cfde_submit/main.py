@@ -138,10 +138,6 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
                     print("State saved to '{}'".format(client_state_file))
 
                 filename = os.path.basename(start_res["cfde_dest_path"])
-                print("\nThe BDBag with your data is named '{}', and will be available through "
-                      "Globus here:\n{}\n".format(filename, state["globus_web_link"]))
-                print("You BDBag will also be available via direct HTTP download here:\n{}"
-                      .format(state["http_link"]))
 
 
 @cli.command()
