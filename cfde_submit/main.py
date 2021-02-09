@@ -134,8 +134,6 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
                 if verbose:
                     print("State saved to '{}'".format(client_state_file))
 
-                filename = os.path.basename(start_res["cfde_dest_path"])
-
 
 @cli.command()
 @click.option("--flow-id", default=None, show_default=True)
