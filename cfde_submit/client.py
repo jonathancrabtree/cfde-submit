@@ -41,9 +41,16 @@ class CfdeClient():
         self.local_config = fair_research_login.ConfigParserTokenStorage(
             filename=self.config_filename
         )
+        cli_message = ('Starting login with Globus Auth, '
+                       'press ^C twice to cancel or once to manually authenticate')
+        code_handlers = [
+            fair_research_login.LocalServerCodeHandler(cli_message=cli_message),
+            fair_research_login.InputCodeHandler(),
+        ]
         self.__native_client = fair_research_login.NativeClient(client_id=self.client_id,
                                                                 app_name=self.app_name,
-                                                                token_storage=self.local_config)
+                                                                token_storage=self.local_config,
+                                                                code_handlers=code_handlers,)
         self.last_flow_run = {}
         # Fetch dynamic config info
         self.tokens = tokens or {}
