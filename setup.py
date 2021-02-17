@@ -29,7 +29,7 @@ setup(
         "fair-research-login>=0.2.0",
         "GitPython>=3.0.4",
         "globus-automate-client>=0.10.5",
-        "globus-sdk>=1.8.0",
+        "globus-sdk>=1.8.0,<2.0",
         "packaging>=20.1",
         "requests>=2.22.0"
     ],
