@@ -138,6 +138,7 @@ You can specify the following `OPTIONS` with `cfde-submit run`.
   - ``--delete-dir`` will trigger deletion of the ``output-dir`` after processing
     is complete. If you didn't specify ``output-dir``, this option has no effect.
   - ``--ignore-git`` will prevent the client from overwriting ``output-dir`` and ``delete-dir`` to handle Git repositories.
+  - ``--force-http`` will prevent use of Globus Connect Personal if it is installed. The command will not complete until your data has been uploaded.
 
 ### Status
 
