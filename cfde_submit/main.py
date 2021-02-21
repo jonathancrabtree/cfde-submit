@@ -69,9 +69,8 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
     never_save = state.get("never_save")
     if not never_save and dcc_id is not None and state_dcc is not None and state_dcc != dcc_id:
         logger.debug("Saved DCC '{}' mismatch with provided DCC '{}'".format(state_dcc, dcc_id))
-        save_dcc = (input("Would you like to save '{}' as your default DCC ID ("
-                          "instead of '{}')? y/n: ".format(dcc_id, state_dcc))
-                    .strip().lower() in ["y", "yes"])
+        save_dcc = yes_or_no(f'Would you like to save {dcc_id} as your default DCC ID (instead of'
+                             f'"{state_dcc}"?)')
         if not save_dcc:
             if (input("Would you like to disable this prompt permanently? y/n:").strip().lower()
                     in ["y", "yes"]):
@@ -84,9 +83,7 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         logger.debug("No saved DCC ID found and no DCC provided")
         dcc_id = input("Please enter the CFDE identifier for your "
                        "Data Coordinating Center: ").strip()
-        save_dcc = input("Thank you. Would you like to save '{}' for future submissions? "
-                         "y/n: ".format(dcc_id)).strip().lower() in ["y", "yes"]
-        # Save DCC ID in state if requested
+        save_dcc = yes_or_no(f'Thank you. Would you like to save {dcc_id} for future submissions?')
         if save_dcc:
             state["dcc_id"] = dcc_id
             logger.debug("DCC ID '{}' will be saved if the Flow initialization is successful and "
@@ -96,8 +93,8 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         cfde = CfdeClient()
         login_user()
         logger.debug("CfdeClient initialized, starting Flow")
-        resp = input(f"Submit datapackage {os.path.basename(data_path)} using {dcc_id}? (y/N)? > ")
-        if resp in ["y", "yes", "Y", "Yes", "aye", "yarr"]:
+        resp = yes_or_no(f'Submit datapackage {os.path.basename(data_path)} using {dcc_id}?')
+        if resp:
             start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
                                                schema=schema,
                                                output_dir=output_dir, delete_dir=delete_dir,
@@ -223,9 +220,24 @@ def version_cmd():
 
 
 def set_log_level(level):
+    """ Reconfigure logging to a specific log level """
     log_config = CONFIG["LOGGING"].copy()
     log_config["handlers"]["console"]["level"] = level
     log_config["loggers"]["cfde_submit"]["level"] = level
     logging.config.dictConfig(log_config)
     global logger
     logger = logging.getLogger(__name__)
+
+
+def yes_or_no(question):
+    """ Ask the user a yes or no question. Returns True for yes, False for no """
+    suffix = " (y/n)? > "
+    question = question.rstrip()
+    answer = input(question + suffix).lower().strip()
+    if answer in ["y", "ye", "yes"]:
+        return True
+    elif answer in ["n", "no"]:
+        return False
+    else:
+        print("Please answer with 'y' or 'n'\n")
+        return yes_or_no(question)
