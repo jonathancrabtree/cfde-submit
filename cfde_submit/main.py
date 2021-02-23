@@ -2,6 +2,7 @@ import click
 import json
 import logging.config
 import os
+import sys
 
 from cfde_submit import CfdeClient, CONFIG, exc, version
 
@@ -93,7 +94,7 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         cfde = CfdeClient()
         login_user()
         logger.debug("CfdeClient initialized, starting Flow")
-        resp = yes_or_no(f'Submit datapackage {os.path.basename(data_path)} using {dcc_id}?')
+        resp = yes_or_no(f"Submit datapackage '{os.path.basename(data_path)}' using {dcc_id}?")
         if resp:
             start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
                                                schema=schema,
@@ -216,7 +217,19 @@ def logout():
 
 @cli.command(name='version')
 def version_cmd():
+    """ Output version information and exit """
     click.secho(version.__version__)
+
+
+@cli.command()
+def reset():
+    """ Reset cfde-submit configuration """
+    remove = yes_or_no("Would you like to reset your cfde-submit settings and submit history?")
+    if remove:
+        if os.path.exists(DEFAULT_STATE_FILE):
+            os.remove(DEFAULT_STATE_FILE)
+        else:
+            sys.exit("No cfde-submit settings exist, skipping")
 
 
 def set_log_level(level):

@@ -75,6 +75,9 @@ Use them as follows:
 
 - ``cfde-submit logout`` will log you out and revoke any valid cached tokens.
 
+- ``cfde-submit version`` will output the cfde-submit version number and exit.
+
+- ``cfde-submit reset`` will reset your cfde-submit configuration.
 
 Python API
 ----------
