@@ -1,20 +1,19 @@
-import json
-import os
-import logging.config
-from packaging.version import parse as parse_version
 import fair_research_login
 import globus_automate_client
 import globus_sdk
+import json
+import logging.config
+import os
 import requests
 
-from cfde_submit import CONFIG, exc, globus_http, validation
 from .version import __version__ as VERSION
+from cfde_submit import CONFIG, exc, globus_http, validation
+from packaging.version import parse as parse_version
 
-logging.config.dictConfig(CONFIG["LOGGING"])
 logger = logging.getLogger(__name__)
 
 
-class CfdeClient():
+class CfdeClient:
     """The CfdeClient enables easily using the CFDE tools to ingest data."""
     client_id = "417301b1-5101-456a-8a27-423e71a2ae26"
     config_filename = os.path.expanduser("~/.cfde-submit.cfg")
@@ -294,8 +293,7 @@ class CfdeClient():
         BDBag API (see https://github.com/fair-research/bdbag for details).
         """
         self.check()
-        if verbose:
-            print("Startup: Validating input")
+        logger.debug("Startup: Validating input")
 
         catalogs = self.remote_config['CATALOGS']
         if catalog_id in catalogs.keys():
@@ -356,14 +354,12 @@ class CfdeClient():
                 "data_url": data_url,
             })
 
-        if verbose:
-            print("Flow input populated:\n{}".format(json.dumps(flow_input, indent=4,
-                                                                sort_keys=True)))
+        logger.debug("Flow input populated:\n{}".format(json.dumps(flow_input, indent=4,
+                                                                   sort_keys=True)))
         # Get Flow scope
         flow_id = flow_info["flow_id"]
         # Start Flow
-        if verbose:
-            print("Starting Flow - Submitting data")
+        logger.debug("Starting Flow - Submitting data")
         try:
             flow_res = self.flow_client.run_flow(flow_id, self.flow_scope, flow_input)
         except globus_sdk.GlobusAPIError as e:
@@ -381,8 +377,7 @@ class CfdeClient():
             "flow_id": flow_id,
             "flow_instance_id": flow_res["action_id"]
         }
-        if verbose:
-            print("Flow started successfully.")
+        logger.debug("Flow started successfully.")
 
         return {
             "success": True,

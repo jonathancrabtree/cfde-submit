@@ -1,13 +1,13 @@
-import json
-import os
-import logging
-
 import click
+import json
+import logging.config
+import os
+import sys
 
-from cfde_submit import CfdeClient, exc, version
+from cfde_submit import CfdeClient, CONFIG, exc, version
 
-logger = logging.getLogger(__name__)
 DEFAULT_STATE_FILE = os.path.expanduser("~/.cfde_client.json")
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -25,29 +25,34 @@ def cli():
 @click.option("--delete-dir/--keep-dir", is_flag=True, default=False, show_default=True)
 @click.option("--ignore-git/--handle-git", is_flag=True, default=False, show_default=True)
 @click.option("--dry-run", is_flag=True, default=False, show_default=True)
-@click.option("--test-submission", "--test-sub", "--test-drive", is_flag=True,
-              default=False, show_default=True)
+@click.option("--test-submission", "--test-sub", "--test-drive", is_flag=True, default=False,
+              show_default=True)
 @click.option("--verbose", "-v", is_flag=True, default=False, show_default=True)
-@click.option("--server", default=None)  # , hidden=True)
-@click.option("--force-http", is_flag=True, default=False)  # , hidden=True)
-@click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)  # , hidden=True)
-@click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
+@click.option("--server", default=None)
+@click.option("--force-http", is_flag=True, default=False)
+@click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)
+@click.option("--client-state-file", type=click.Path(exists=True), default=None)
 def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         dry_run, test_submission, verbose, server, force_http,
         bag_kwargs_file, client_state_file):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
-    # Get any saved parameters
+
+    if verbose:
+        set_log_level("DEBUG")
+    else:
+        log_level = os.environ.get("CFDE_SUBMIT_LOGGING")
+        if log_level:
+            set_log_level(log_level)
+
     if not client_state_file:
         client_state_file = DEFAULT_STATE_FILE
     try:
         with open(client_state_file) as f:
             state = json.load(f)
-        if verbose:
-            print("Loaded previous state")
+        logger.debug("Loaded previous state")
     except FileNotFoundError:
         state = {}
-        if verbose:
-            print("No previous state found")
+        logger.debug("No previous state found")
 
     # Read bag_kwargs_file if provided
     if bag_kwargs_file:
@@ -57,19 +62,16 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         bag_kwargs = {}
 
     # Determine DCC ID to use
-    if verbose:
-        print("Determining DCC")
+    logger.debug("Determining DCC")
     # If user supplies DCC as option, will always use that
     # If supplied DCC is different from previously saved DCC, prompt to save,
     #   unless user has not saved DCC or disabled the save prompt
     state_dcc = state.get("dcc_id")
     never_save = state.get("never_save")
     if not never_save and dcc_id is not None and state_dcc is not None and state_dcc != dcc_id:
-        if verbose:
-            print("Saved DCC '{}' mismatch with provided DCC '{}'".format(state_dcc, dcc_id))
-        save_dcc = (input("Would you like to save '{}' as your default DCC ID ("
-                          "instead of '{}')? y/n: ".format(dcc_id, state_dcc))
-                    .strip().lower() in ["y", "yes"])
+        logger.debug("Saved DCC '{}' mismatch with provided DCC '{}'".format(state_dcc, dcc_id))
+        save_dcc = yes_or_no(f'Would you like to save {dcc_id} as your default DCC ID (instead of'
+                             f'"{state_dcc}"?)')
         if not save_dcc:
             if (input("Would you like to disable this prompt permanently? y/n:").strip().lower()
                     in ["y", "yes"]):
@@ -79,28 +81,21 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         save_dcc = False
         print("Using saved DCC '{}'".format(dcc_id))
     elif dcc_id is None and state_dcc is None:
-        if verbose:
-            print("No saved DCC ID found and no DCC provided")
+        logger.debug("No saved DCC ID found and no DCC provided")
         dcc_id = input("Please enter the CFDE identifier for your "
                        "Data Coordinating Center: ").strip()
-        save_dcc = input("Thank you. Would you like to save '{}' for future submissions? "
-                         "y/n: ".format(dcc_id)).strip().lower() in ["y", "yes"]
-        # Save DCC ID in state if requested
+        save_dcc = yes_or_no(f'Thank you. Would you like to save {dcc_id} for future submissions?')
         if save_dcc:
             state["dcc_id"] = dcc_id
-            if verbose:
-                print("DCC ID '{}' will be saved if the Flow initialization is successful "
-                      "and this is not a dry run"
-                      .format(dcc_id))
+            logger.debug("DCC ID '{}' will be saved if the Flow initialization is successful and "
+                         "this is not a dry run".format(dcc_id))
     try:
-        if verbose:
-            print("Initializing Flow")
+        logger.debug("Initializing Flow")
         cfde = CfdeClient()
         login_user()
-        if verbose:
-            print("CfdeClient initialized, starting Flow")
-        resp = input(f"Submit datapackage {os.path.basename(data_path)} using {dcc_id}? (y/N)? > ")
-        if resp in ["y", "yes", "Y", "Yes", "aye", "yarr"]:
+        logger.debug("CfdeClient initialized, starting Flow")
+        resp = yes_or_no(f"Submit datapackage '{os.path.basename(data_path)}' using {dcc_id}?")
+        if resp:
             start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
                                                schema=schema,
                                                output_dir=output_dir, delete_dir=delete_dir,
@@ -131,15 +126,14 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
                 state["globus_web_link"] = start_res["globus_web_link"]
                 with open(client_state_file, 'w') as out:
                     json.dump(state, out)
-                if verbose:
-                    print("State saved to '{}'".format(client_state_file))
+                logger.debug("State saved to '{}'".format(client_state_file))
 
 
 @cli.command()
 @click.option("--flow-id", default=None, show_default=True)
 @click.option("--flow-instance-id", default=None, show_default=True)
 @click.option("--raw", is_flag=True, default=False)
-@click.option("--client-state-file", type=click.Path(exists=True), default=None)  # , hidden=True)
+@click.option("--client-state-file", type=click.Path(exists=True), default=None)
 def status(flow_id, flow_instance_id, raw, client_state_file):
     """Check the status of a Flow."""
     login_user()
@@ -223,4 +217,40 @@ def logout():
 
 @cli.command(name='version')
 def version_cmd():
+    """ Output version information and exit """
     click.secho(version.__version__)
+
+
+@cli.command()
+def reset():
+    """ Reset cfde-submit configuration """
+    remove = yes_or_no("Would you like to reset your cfde-submit settings and submit history?")
+    if remove:
+        if os.path.exists(DEFAULT_STATE_FILE):
+            os.remove(DEFAULT_STATE_FILE)
+        else:
+            sys.exit("No cfde-submit settings exist, skipping")
+
+
+def set_log_level(level):
+    """ Reconfigure logging to a specific log level """
+    log_config = CONFIG["LOGGING"].copy()
+    log_config["handlers"]["console"]["level"] = level
+    log_config["loggers"]["cfde_submit"]["level"] = level
+    logging.config.dictConfig(log_config)
+    global logger
+    logger = logging.getLogger(__name__)
+
+
+def yes_or_no(question):
+    """ Ask the user a yes or no question. Returns True for yes, False for no """
+    suffix = " (y/n)? > "
+    question = question.rstrip()
+    answer = input(question + suffix).lower().strip()
+    if answer in ["y", "ye", "yes"]:
+        return True
+    elif answer in ["n", "no"]:
+        return False
+    else:
+        print("Please answer with 'y' or 'n'\n")
+        return yes_or_no(question)

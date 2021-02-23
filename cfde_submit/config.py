@@ -10,6 +10,7 @@ EX: export CFDE_SUBMIT_LOGGING=DEBUG
 import os
 import globus_automate_client
 
+log_level = os.getenv("CFDE_SUBMIT_LOGGING") or "NOTSET"
 
 CONFIG = {
     # Files with dynamic config information in JSON
@@ -35,14 +36,17 @@ CONFIG = {
         },
         "handlers": {
             "console": {
-                "class": ("logging.StreamHandler" if os.getenv("CFDE_SUBMIT_LOGGING")
-                          else "logging.NullHandler"),
-                "level": os.getenv("CFDE_SUBMIT_LOGGING") or "INFO",
+                "class": "logging.StreamHandler",
                 "formatter": "basic",
+                "level": "NOTSET"
             }
         },
         "loggers": {
-            "cfde_submit": {"level": "DEBUG", "handlers": ["console"]},
+            'cfde_submit': {
+                "propagate": False,
+                "level": "NOTSET",
+                "handlers": ["console"],
+            },
         },
     },
     # This scope lists the GCS server for PROD that holds config data. It MAY be different
