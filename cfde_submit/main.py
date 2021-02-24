@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @click.group()
+@click.version_option(version=version.__version__, message="%(version)s")
 def cli():
     """Client to interact with the DERIVA Action Provider and associated Flows."""
     pass
@@ -213,12 +214,6 @@ def logout():
         click.secho("You have been logged out", fg='green')
     else:
         click.secho("You are not logged in")
-
-
-@cli.command(name='version')
-def version_cmd():
-    """ Output version information and exit """
-    click.secho(version.__version__)
 
 
 @cli.command()
