@@ -7,7 +7,7 @@ import os
 import requests
 
 from .version import __version__ as VERSION
-from cfde_submit import CONFIG, exc, globus_http, validation
+from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
 
 logger = logging.getLogger(__name__)
@@ -304,10 +304,12 @@ class CfdeClient:
             schema = catalogs[catalog_id]
 
         # Coerces the BDBag path to a .zip archive
-        data_path = validation.validate_user_submission(
-            data_path, schema, output_dir=output_dir, delete_dir=delete_dir,
+        data_path = bdbag_utils.get_bag(
+            data_path, output_dir=output_dir, delete_dir=delete_dir,
             handle_git_repos=handle_git_repos, bdbag_kwargs=kwargs
         )
+        # Raises exc.ValidationException if something doesn't match up with the schema
+        validation.validate_user_submission(data_path, schema)
 
         flow_info = self.remote_config["FLOWS"][self.service_instance]
         dest_path = "{}{}".format(flow_info["cfde_ep_path"], os.path.basename(data_path))

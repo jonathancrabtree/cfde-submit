@@ -106,8 +106,8 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         else:
             click.secho("Aborted. No data submitted.", fg="yellow")
             return
-    except exc.SubmissionsUnavailable as su:
-        click.secho(str(su), fg='red')
+    except (exc.SubmissionsUnavailable, exc.InvalidInput, exc.ValidationException) as e:
+        click.secho(str(e), fg='red')
         return
     except Exception as e:
         logger.exception(e)

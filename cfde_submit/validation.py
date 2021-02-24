@@ -1,13 +1,11 @@
 import os
 import logging
-import shutil
 
 from bdbag import bdbag_api
 from datapackage import Package
-import git
 from tableschema.exceptions import CastError
 
-from cfde_submit import CONFIG, exc
+from cfde_submit import exc
 
 logger = logging.getLogger(__name__)
 
@@ -131,81 +129,6 @@ def validate_user_submission(data_path, schema, output_dir=None, delete_dir=Fals
                 Default True.
         bdbag_kwargs (dict): Extra args to pass to bdbag
     """
-    bdbag_kwargs = bdbag_kwargs or {}
-    data_path = os.path.abspath(data_path)
-    if not os.path.exists(data_path):
-        raise FileNotFoundError("Path '{}' does not exist".format(data_path))
-
-    if handle_git_repos:
-        logger.debug("Checking for a Git repository")
-        # If Git repo, set output_dir appropriately
-        try:
-            repo = git.Repo(data_path, search_parent_directories=True)
-        # Not Git repo
-        except git.InvalidGitRepositoryError:
-            logger.debug("Not a Git repo")
-        # Path not found, turn into standard FileNotFoundError
-        except git.NoSuchPathError:
-            raise FileNotFoundError("Path '{}' does not exist".format(data_path))
-        # Is Git repo
-        else:
-            logger.debug("Git repo found, collecting metadata")
-            # Needs to not have slash at end - is known Git repo already, slash
-            # interferes with os.path.basename/dirname
-            if data_path.endswith("/"):
-                data_path = data_path[:-1]
-            # Set output_dir to new dir named with HEAD commit hash
-            new_dir_name = "{}_{}".format(os.path.basename(data_path), str(repo.head.commit))
-            output_dir = os.path.join(os.path.dirname(data_path), new_dir_name)
-            # Delete temp dir after archival
-            delete_dir = True
-
-    # If dir and not already BDBag, make BDBag
-    if os.path.isdir(data_path) and not bdbag_api.is_bag(data_path):
-        logger.debug("Creating BDBag out of directory '{}'".format(data_path))
-        # If output_dir specified, copy data to output dir first
-        if output_dir:
-            logger.debug("Copying data to '{}' before creating BDBag".format(output_dir))
-            output_dir = os.path.abspath(output_dir)
-            # If shutil.copytree is called when the destination dir is inside the source dir
-            # by more than one layer, it will recurse infinitely.
-            # (e.g. /source => /source/dir/dest)
-            # Exactly one layer is technically okay (e.g. /source => /source/dest),
-            # but it's easier to forbid all parent/child dir cases.
-            # Check for this error condition by determining if output_dir is a child
-            # of data_path.
-            if os.path.commonpath([data_path]) == os.path.commonpath([data_path, output_dir]):
-                raise ValueError("The output_dir ('{}') must not be in data_path ('{}')"
-                                 .format(output_dir, data_path))
-            try:
-                shutil.copytree(data_path, output_dir)
-            except FileExistsError:
-                raise FileExistsError(("The output directory must not exist. "
-                                       "Delete '{}' to submit.\nYou can set delete_dir=True "
-                                       "to avoid this issue in the future.").format(output_dir))
-            # Process new dir instead of old path
-            data_path = output_dir
-        # If output_dir not specified, never delete data dir
-        else:
-            delete_dir = False
-        # Make bag
-        bdbag_api.make_bag(data_path, **bdbag_kwargs)
-        if not bdbag_api.is_bag(data_path):
-            raise ValueError("Failed to create BDBag from {}".format(data_path))
-        logger.debug("BDBag created at '{}'".format(data_path))
-
-    # If dir (must be BDBag at this point), archive
-    if os.path.isdir(data_path):
-        logger.debug("Archiving BDBag at '{}' using '{}'"
-                     .format(data_path, CONFIG["ARCHIVE_FORMAT"]))
-        new_data_path = bdbag_api.archive_bag(data_path, CONFIG["ARCHIVE_FORMAT"])
-        logger.debug("BDBag archived to file '{}'".format(new_data_path))
-        # If requested (e.g. Git repo copied dir), delete data dir
-        if delete_dir:
-            logger.debug("Removing old directory '{}'".format(data_path))
-            shutil.rmtree(data_path)
-        # Overwrite data_path - don't care about dir for uploading
-        data_path = new_data_path
 
     # Validate TableSchema in BDBag
     logger.debug("Validating TableSchema in BDBag '{}'".format(data_path))
