@@ -65,7 +65,7 @@ When using the `cfde-submit` tool, your C2M2 instance must be contained in a fol
 
 ### Find your DCC's identifier
 
-When using `cfde-submit` to submit a new C2M2 instance, you must enter your DCC's unique identifier, issued by CFDE-CC. You can find this identifier in the CFDE Portal. Visit the [Onboarded DCC](https://app.nih-cfde.org/chaise/recordset/#registry/CFDE:dcc@sort(RID) page in the CFDE Portal and locate your DCC in the table.
+When using `cfde-submit` to submit a new C2M2 instance, you must enter your DCC's unique identifier, issued by CFDE-CC. You can find this identifier in the CFDE Portal. Visit the [Onboarded DCC](https://app.nih-cfde.org/chaise/recordset/#registry/CFDE:dcc@sort(RID)) page in the CFDE Portal and locate your DCC in the table.
 
 The identifier you need for `cfde-submit` is of the form `cfde_registry_dcc:*`, where the `*` is replaced by a short form of your DCC's name. For example, the DCC identifier for The Human Microbiome Project is `cfde_registry_dcc:hmp`.
 
