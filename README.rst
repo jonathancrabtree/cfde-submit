@@ -45,7 +45,7 @@ ingest may fail. See instructions here (link to docs pending).
 Command line
 ----------------
 
-There are four commands available: `run`, `status`, `login`, and `logout`.
+There are four commands available: `run`, `status`, `login`, `logout`, and `reset`.
 Use them as follows:
 
 - ``cfde-submit run DATA-PATH`` will ingest the data found at ``DATA-PATH`` into
@@ -74,8 +74,6 @@ Use them as follows:
   authenticate you if needed.
 
 - ``cfde-submit logout`` will log you out and revoke any valid cached tokens.
-
-- ``cfde-submit version`` will output the cfde-submit version number and exit.
 
 - ``cfde-submit reset`` will reset your cfde-submit configuration.
 
