@@ -11,9 +11,13 @@ class CfdeClientException(Exception):
     pass
 
 
-class ValidationException(Exception):
-    """Base Exception for client"""
+class ValidationException(CfdeClientException):
+    """Something didn't validate"""
     pass
+
+
+class InvalidInput(CfdeClientException):
+    """A dataset given to the client was not valid"""
 
 
 class RemoteConfigException(CfdeClientException):
