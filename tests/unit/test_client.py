@@ -39,7 +39,7 @@ def test_start_deriva_flow_while_logged_out(logged_out):
 
 
 def test_start_deriva_flow_http(logged_in, mock_validation, mock_remote_config, mock_flows_client,
-                                mock_upload):
+                                mock_upload, mock_get_bag):
     mock_validation.return_value = "/home/cfde-user/bagged_path.zip"
     client.CfdeClient().start_deriva_flow("bagged_path.zip", "my_dcc")
 
@@ -62,7 +62,7 @@ def test_start_deriva_flow_http(logged_in, mock_validation, mock_remote_config, 
 
 
 def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, mock_flows_client,
-                               mock_upload, mock_gcp_installed):
+                               mock_upload, mock_gcp_installed, mock_get_bag):
     mock_validation.return_value = "/home/cfde-user/bagged_path.zip"
     client.CfdeClient().start_deriva_flow("bagged_path.zip", "my_dcc")
 
@@ -83,12 +83,13 @@ def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, m
         'cfde_ep_path': '/CFDE/data/prod/bagged_path.zip',
         'cfde_ep_url': 'https://prod-gcs-inst.data.globus.org',
         'is_directory': False,
-        'source_path': '/home/cfde-user/bagged_path.zip'
+        'source_path': 'bagged_path.zip'
     }
 
 
 def test_start_deriva_flow_force_http(logged_in, mock_validation, mock_remote_config,
-                                      mock_flows_client, mock_upload, mock_gcp_installed):
+                                      mock_flows_client, mock_upload, mock_gcp_installed,
+                                      mock_get_bag):
     mock_validation.return_value = "/home/cfde-user/bagged_path.zip"
     client.CfdeClient().start_deriva_flow("bagged_path.zip", "my_dcc", force_http=True)
     assert mock_validation.called

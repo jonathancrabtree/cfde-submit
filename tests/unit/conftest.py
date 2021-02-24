@@ -3,7 +3,7 @@ import pytest
 import fair_research_login
 import globus_sdk
 
-from cfde_submit import CONFIG, version, validation, globus_http
+from cfde_submit import CONFIG, version, validation, globus_http, bdbag_utils
 import cfde_submit
 
 # Maximum output logging!
@@ -77,6 +77,15 @@ def mock_gcp_installed(mock_gcp_uninstalled):
 def mock_upload(monkeypatch):
     monkeypatch.setattr(globus_http, 'upload', Mock())
     return globus_http.upload
+
+
+@pytest.fixture
+def mock_get_bag(monkeypatch):
+    """Simply returns the path passed in, and does no error checking on any local bags"""
+    def mock_get_bag(bag_path, *args, **kwargs):
+        return bag_path
+    monkeypatch.setattr(bdbag_utils, 'get_bag', mock_get_bag)
+    return bdbag_utils.get_bag
 
 
 @pytest.fixture
