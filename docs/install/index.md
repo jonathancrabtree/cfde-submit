@@ -1,5 +1,5 @@
 # Installation                                                                                                                                                                                                                                                
- ## Prerequisites
+## Prerequisites
 The cfde-submit command requires Python 3 and package manager "pip". Pip is included by default with Python 3.4 and later.  For more information on installation, please refer to [https://www.python.org](https://www.python.org).
 
 ## Create a Virtual Environment
