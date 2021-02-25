@@ -172,3 +172,21 @@ cfde-submit logout
 ```
 
 Subsequent ``cfde-submit`` commands will require a fresh login.
+
+### Version
+Specifying the --version flag will print the cfde-submit version number and exit.
+
+``` cfde-submit --version```
+
+### Reset configuration
+The reset command resets your cfde-submit configuration. This can be useful in some cases, for 
+example if you want to unset the default DCC.
+
+``` cfde-submit reset ```
+
+---
+Updating cfde-submit
+---
+To update the cfde-submit package to the latest version, run the command below.
+
+``` python3 -m pip install --upgrade cfde-submit ```
