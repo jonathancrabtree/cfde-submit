@@ -34,16 +34,15 @@ Usage
 This tool can ingest any of the following into DERIVA:
 
 1. A directory to be formatted into a BDBag
-2. A Git repository to be copied into a BDBag
-3. A premade BDBag directory
-4. A premade BDBag in an archive file
+2. A premade BDBag directory
+3. A premade BDBag in an archive file
 
 In all cases, the data must already be in CFDE TableSchema format, or the
 ingest may fail. See instructions here (link to docs pending).
 
 
 Command line
-----------------
+------------
 
 There are four commands available: `run`, `status`, `login`, `logout`, and `reset`.
 Use them as follows:
@@ -60,12 +59,7 @@ Use them as follows:
     is complete. If you didn't specify ``output-dir``, this option has no effect.
   - ``--ignore-git`` will prevent the client from overwriting ``output-dir`` and ``delete-dir`` to handle Git repositories.
 
-- ``cfde-submit status`` will check the status of a Flow instance. By default,
-  the last run Flow is used, but if you want to check a previous Flow you can
-  provide one or both of the following options:
-
-  - ``--flow-id=ID`` is the ID of the Flow itself (NOT a specific instance of the Flow).
-  - ``--flow-instance-id=ID`` is the ID of the particular instance/invocation of the Flow you want to check.
+- ``cfde-submit status`` will check the status of a Flow instance.
 
 - ``cfde-submit login`` will start the login process. If you have tokens saved
   from a previous login, this command will validate those tokens and only
