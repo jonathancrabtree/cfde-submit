@@ -22,7 +22,9 @@ The `cfde-submit` tool works with the CFDE Portal, and its use is authorized by 
  * [Status](#Status)
  * [After your submission](#After-your-submission)
  * [Logout](#Logout)
-
+ * [Version](#Version)
+ * [Reset](#Reset)
+ * [Updating](#Updating)
 ---
 
 ## Install
@@ -172,3 +174,25 @@ cfde-submit logout
 ```
 
 Subsequent ``cfde-submit`` commands will require a fresh login.
+
+### Version
+Specifying the --version flag will print the cfde-submit version number and exit.
+
+```
+cfde-submit --version
+```
+
+### Reset
+The reset command resets your cfde-submit configuration. This can be useful in some cases, for 
+example if you want to unset the default DCC.
+
+```
+cfde-submit reset
+```
+
+### Updating
+To update the cfde-submit package to the latest version, run the command below.
+
+```
+python3 -m pip install --upgrade cfde-submit
+```
