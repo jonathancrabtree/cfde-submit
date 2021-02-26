@@ -34,16 +34,15 @@ Usage
 This tool can ingest any of the following into DERIVA:
 
 1. A directory to be formatted into a BDBag
-2. A Git repository to be copied into a BDBag
-3. A premade BDBag directory
-4. A premade BDBag in an archive file
+2. A premade BDBag directory
+3. A premade BDBag in an archive file
 
 In all cases, the data must already be in CFDE TableSchema format, or the
 ingest may fail. See instructions here (link to docs pending).
 
 
 Command line
-----------------
+------------
 
 There are four commands available: `run`, `status`, `login`, `logout`, and `reset`.
 Use them as follows:
