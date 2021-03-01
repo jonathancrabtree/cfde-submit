@@ -39,7 +39,7 @@ This section covers everything you need to do after you've installed the `cfde-s
 
 ### Terminology
 
-The [Common Fund Data Ecosystem (CFDE)](https://www.nih-cfde.org/) is an initiative of the National Institutes of Health's Common Fund. The Common Fund sponsors several large biomedical initiatives that either span multiple institutes or have no institute as a home. Each of these initiatives is focused on a specific biomedical research issue. For example, the [Kids First](https://kidsfirstdrc.org/) initiative is focused on pediatric cancer, and the [SPARC](https://commonfund.nih.gov/sparc/sparc4-sp4) initiative focuses on interconnections and interactions between the human nervous system and specific organs.
+The [Common Fund Data Ecosystem (CFDE)](https://www.nih-cfde.org/) is an initiative of the National Institutes of Health's Common Fund. The Common Fund sponsors several large biomedical initiatives that either span multiple institutes or have no institute as a home. Each of these initiatives is focused on a specific biomedical research issue. For example, the [Kids First](https://kidsfirstdrc.org/) initiative is focused on pediatric cancer and birth defects, and the [SPARC](https://commonfund.nih.gov/sparc/sparc4-sp4) initiative focuses on interconnections and interactions between the human nervous system and specific organs.
 
 Within each Common Fund initiative, a **Data Coordinating Center (DCC)** is responsible for gathering the data produced by initiative partners and making that data available to the research community at large, subject to data access agreements. Each Common Fund DCC currently uses its own methods and tools to carry out its mission, so researchers who need to access data must work directly with each relevant DCC, and may need to familiarize themselves with several different data access systems.
 
@@ -57,11 +57,11 @@ Once your DCC has been registered with CFDE, your Principal Investigator (or des
 
 ### Prepare your C2M2 instance
 
-The `cfde-submit` tool takes a valid C2M2 instance as its input. Any any given time, each DCC has a single C2M2 instance visible in the CFDA portal's public views. Of course, you may revise your DCC's C2M2 instance when your DCC's data changes. You may submit several versions of your DCC's C2M2 instance and review each in a private Data Review area in the portal before approving a single instance for use in the public portal views.
+The `cfde-submit` tool takes a valid C2M2 instance as its input. Any any given time, each DCC has a single C2M2 instance visible in the CFDE portal's public views. Of course, you may revise your DCC's C2M2 instance when your DCC's data changes. You may submit several versions of your DCC's C2M2 instance and review each in a private Data Review area in the portal before approving a single instance for use in the public portal views.
 
-Constructing a C2M2 instance requires comprehensive knowledge of your DCC's data. The [C2M2 documentation](https://docs.nih-cfde.org/en/latest/specifications-and-documentation/draft-C2M2_specification_with_Levels/) describes the data model and how to construct a C2M2 instance for your DCC's data.
+Constructing a C2M2 instance requires comprehensive knowledge of your DCC's data. The [C2M2 documentation](https://docs.nih-cfde.org/en/latest/c2m2/draft-C2M2_specification_with_Levels/) describes the data model and how to construct a C2M2 instance for your DCC's data.
 
-When using the `cfde-submit` tool, your C2M2 instance must be contained in a folder on your computer, and it must include the JSON Schema document appropriate for the type of C2M2 instance you are submitting. (Level 0 C2M2 instances contain only a master list of files. Level 1 C2M2 instances include relationships between files, biosamples, subjects, projects, and collections.)
+When using the `cfde-submit` tool, your C2M2 instance must be contained in a folder on your computer, and it must include the JSON Schema document appropriate for the type of C2M2 instance you are submitting. 
 
 **[TODO: Add detail about any extra files that need to be included in the C2M2 datapackage. E.g., DCC and contact info.]**
 
