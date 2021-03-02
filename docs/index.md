@@ -6,27 +6,6 @@ This lightweight command-line tool enables an authorized NIH Common Fund Data Co
 
 The `cfde-submit` tool works with the CFDE Portal, and its use is authorized by the CFDE-CC team: only authorized individuals may submit information using `cfde-submit`. See the Getting Started section for information about obtaining authorization.
 
-## Table of Contents
-
-* [Install](#Install)
-* [Get started](#Get-started)
- * [Terminology](#Terminology)
- * [Register your DCC](#Register-your-DCC)
- * [Obtain authorization to use cfde-submit](#Obtain-authorization-to-use-cfde-submit)
- * [Prepare your C2M2 instance](#Prepare-your-C2M2-instance)
- * [Find your DCC's identifier](#Find-your-DCC's-identifier)
- * [Check your system](#Check-your-system)
-* [Use the tool](#Use-the-tool)
- * [Login](#Login)
- * [Run](#Run)
- * [Status](#Status)
- * [After your submission](#After-your-submission)
- * [Logout](#Logout)
- * [Version](#Version)
- * [Reset](#Reset)
- * [Updating](#Updating)
----
-
 ## Install
 
 See the [Install Guide](./install/index.md) for installation instructions.
