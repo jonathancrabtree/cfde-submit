@@ -12,5 +12,12 @@ The steps below will walk you through the process of creating a new virtual envi
  3. You should notice the string "(cfde_venv)" prepended to your shell prompt, indicating the virtual environment is running
  4. To exit the environment, run the command `deactivate` 
 
+Alternatively, you can also use conda to create a new virtual environment.
+
+1. Create a new conda environemnt: `conda create --name cfde_venv`
+2. Activate the environment: `conda acitivate cfde_venv`
+3. Successful activation of the virtual environment will result in the update from "(base)" to "(cfde_vevn)" in front of your shell prompt
+4. To exit the environment run: `conda deactivate`
+
 ## Install cfde-submit
 The most recent release of `cfde-submit` can be installed via pip. While cfde_venv is active, run the command: `pip3 install cfde-submit`. This will install `cfde-submit` and all other required packages. These packages will install into your virtual environment and be added to your path. To verify the installation has succeeded, run the command `cfde-submit` to see the list of available commands.
