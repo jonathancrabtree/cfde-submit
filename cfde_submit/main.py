@@ -38,6 +38,7 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         bag_kwargs_file, client_state_file):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
 
+    # Set log levels
     if verbose:
         set_log_level("DEBUG")
     else:
@@ -45,6 +46,7 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         if log_level:
             set_log_level(log_level)
 
+    # Read state file
     if not client_state_file:
         client_state_file = DEFAULT_STATE_FILE
     try:
@@ -62,25 +64,29 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
     else:
         bag_kwargs = {}
 
-    # Determine DCC ID to use
-    logger.debug("Determining DCC")
+    # Determine DCC ID
     # If user supplies DCC as option, will always use that
     # If supplied DCC is different from previously saved DCC, prompt to save,
-    #   unless user has not saved DCC or disabled the save prompt
+    # unless user has not saved DCC or disabled the save prompt
+    logger.debug("Determining DCC")
     state_dcc = state.get("dcc_id")
     never_save = state.get("never_save")
+
     if not never_save and dcc_id is not None and state_dcc is not None and state_dcc != dcc_id:
         logger.debug("Saved DCC '{}' mismatch with provided DCC '{}'".format(state_dcc, dcc_id))
-        save_dcc = yes_or_no(f'Would you like to save {dcc_id} as your default DCC ID (instead of'
-                             f'"{state_dcc}"?)')
-        if not save_dcc:
-            if (input("Would you like to disable this prompt permanently? y/n:").strip().lower()
-                    in ["y", "yes"]):
+        save_dcc = yes_or_no(f'Would you like to save {dcc_id} as your default DCC ID (instead of '
+                             f'"{state_dcc}")?')
+        if save_dcc:
+            state['dcc_id'] = dcc_id
+        else:
+            disable_prompt = yes_or_no("Would you like to disable this prompt permanently?")
+            if disable_prompt:
                 state["never_save_dcc"] = True
+
     elif dcc_id is None and state_dcc is not None:
         dcc_id = state_dcc
-        save_dcc = False
         print("Using saved DCC '{}'".format(dcc_id))
+
     elif dcc_id is None and state_dcc is None:
         logger.debug("No saved DCC ID found and no DCC provided")
         dcc_id = input("Please enter the CFDE identifier for your "
@@ -95,7 +101,8 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git,
         cfde = CfdeClient()
         login_user()
         logger.debug("CfdeClient initialized, starting Flow")
-        resp = yes_or_no(f"Submit datapackage '{os.path.basename(data_path)}' using {dcc_id}?")
+        package_name = os.path.basename(os.path.normpath(data_path))
+        resp = yes_or_no(f"Submit datapackage '{package_name}' using {dcc_id}?")
         if resp:
             start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
                                                schema=schema,
