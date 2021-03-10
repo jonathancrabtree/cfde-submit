@@ -33,8 +33,8 @@ def cli():
 @click.option("--globus", is_flag=True, default=False)
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)
-def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, dry_run, test_submission, verbose,
-        server, globus, bag_kwargs_file, client_state_file):
+def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, dry_run,
+        test_submission, verbose, server, globus, bag_kwargs_file, client_state_file):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
 
     # Set log levels
@@ -103,14 +103,17 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, 
         package_name = os.path.basename(os.path.normpath(data_path))
         resp = yes_or_no(f"Submit datapackage '{package_name}' using {dcc_id}?")
         if resp:
-            start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog, schema=schema,
-                                               output_dir=output_dir, delete_dir=delete_dir,
-                                               handle_git_repos=(not ignore_git), server=server, dry_run=dry_run,
-                                               test_sub=test_submission, globus=globus, **bag_kwargs)
+            start_res = cfde.start_deriva_flow(data_path, dcc_id=dcc_id, catalog_id=catalog,
+                                               schema=schema, output_dir=output_dir,
+                                               delete_dir=delete_dir,
+                                               handle_git_repos=(not ignore_git), server=server,
+                                               dry_run=dry_run, test_sub=test_submission,
+                                               globus=globus, **bag_kwargs)
         else:
             click.secho("Aborted. No data submitted.", fg="yellow")
             return
-    except (exc.SubmissionsUnavailable, exc.InvalidInput, exc.ValidationException, exc.EndpointUnavailable) as e:
+    except (exc.SubmissionsUnavailable, exc.InvalidInput, exc.ValidationException,
+            exc.EndpointUnavailable) as e:
         click.secho(str(e), fg='red')
         return
     except Exception as e:
@@ -140,7 +143,7 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, 
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)
 def status(flow_id, flow_instance_id, raw, client_state_file):
     """Check the status of a Flow."""
-    login_user()
+    login_user(quiet=True)
     if not flow_id or not flow_instance_id:
         if not client_state_file:
             client_state_file = DEFAULT_STATE_FILE
@@ -173,7 +176,7 @@ def status(flow_id, flow_instance_id, raw, client_state_file):
             print(status_res["clean_status"])
 
 
-def login_user(force_login=False, no_browser=False, no_local_server=False):
+def login_user(force_login=False, no_browser=False, no_local_server=False, quiet=False):
     """
     Arguments:
         force_login -- Force a login flow with Globus Auth, even if tokens are valid
@@ -181,7 +184,7 @@ def login_user(force_login=False, no_browser=False, no_local_server=False):
         no_local_server -- Disable local server for automatically copying auth code
     """
     cfde = CfdeClient()
-    if cfde.service_instance != "prod":
+    if not quiet and cfde.service_instance != "prod":
         click.secho(f"Running on service '{cfde.service_instance}'", fg="yellow")
 
     try:
