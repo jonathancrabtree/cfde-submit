@@ -5,7 +5,6 @@ import json
 import logging.config
 import os
 import requests
-
 from .version import __version__ as VERSION
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
@@ -24,9 +23,6 @@ class CfdeClient:
         """Create a CfdeClient.
 
         Keyword Arguments:
-            service_instance (str): The instance of the Globus Automate Flow
-                    and/or the DERIVA ingest Action Provider to use. Unless directed otherwise,
-                    this should be left to the default. **Default**: ``prod``.
             tokens (dict): A dict keyed by scope, of active Globus Tokens. token keys MUST be a
                     subset of self.scopes. Each token value must contain an additional dict, and
                     have an active "access_token". setting tokens=None will require .login() to
@@ -37,6 +33,8 @@ class CfdeClient:
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
+        self.__transfer_client = None
+        self.transfer_scope = "urn:globus:auth:scope:transfer.api.globus.org:all"
         self.local_config = fair_research_login.ConfigParserTokenStorage(
             filename=self.config_filename
         )
@@ -120,7 +118,7 @@ class CfdeClient:
 
     @property
     def scopes(self):
-        return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope, self.flow_scope]
+        return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope, self.flow_scope, self.transfer_scope]
 
     @property
     def gcs_https_scope(self):
@@ -186,6 +184,16 @@ class CfdeClient:
         return self.__flow_client
 
     @property
+    def transfer_client(self):
+        if self.__transfer_client:
+            return self.__transfer_client
+
+        transfer_token = self.tokens[self.transfer_scope]['access_token']
+        self.__transfer_client = globus_sdk.TransferClient(
+            authorizer=globus_sdk.AccessTokenAuthorizer(transfer_token))
+        return self.__transfer_client
+
+    @property
     def https_authorizer(self):
         """Get the https authorizer for downloading/uploading data from the GCS instance.
         This can differ between the dev/staging/prod machines"""
@@ -237,11 +245,9 @@ class CfdeClient:
             if raise_exception is True:
                 raise
 
-    def start_deriva_flow(self, data_path, dcc_id, catalog_id=None,
-                          schema=None, server=None,
+    def start_deriva_flow(self, data_path, dcc_id, catalog_id=None, schema=None, server=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
-                          dry_run=False, test_sub=False, verbose=False,
-                          force_http=False, **kwargs):
+                          dry_run=False, test_sub=False, globus=False, **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
 
         Arguments:
@@ -280,14 +286,7 @@ class CfdeClient:
                     the submission will be inegsted into DERIVA and immediately deleted?
                     When True, the data wil not remain in DERIVA to be viewed and the
                     Flow will terminate before any curation step.
-            verbose (bool): Should intermediate status messages be printed out?
-                    Default False.
-
-        Keyword Arguments:
-            force_http (bool): Should the data be sent using HTTP instead of Globus Transfer,
-                    even if Globus Transfer is available? Because Globus Transfer is more
-                    robust than HTTP, it is highly recommended to leave this False.
-                    Default False.
+            globus (bool): Should the data be transferred using Globus Transfer? Default False.
 
         Other keyword arguments are passed directly to the ``make_bag()`` function of the
         BDBag API (see https://github.com/fair-research/bdbag for details).
@@ -332,12 +331,35 @@ class CfdeClient:
         if server:
             flow_input["server"] = server
 
-        # If local EP exists (and not force_http), can use Transfer
-        # Local EP fetched now in case GCP started after Client creation
-        local_endpoint = globus_sdk.LocalGlobusConnectPersonal().endpoint_id
-        logger.debug(f'Local endpoint: {local_endpoint}')
-        if local_endpoint and not force_http:
-            logger.debug("Using local Globus Connect Personal Endpoint '{}'".format(local_endpoint))
+        # Transfer data via globus
+        if globus:
+            local_endpoint = globus_sdk.LocalGlobusConnectPersonal().endpoint_id
+            logger.debug(f'Local endpoint: {local_endpoint}')
+            if not local_endpoint:
+                raise exc.EndpointUnavailable("Globus Connect Personal installation not found. To "
+                                              "install, please visit "
+                                              "https://www.globus.org/globus-connect-personal")
+            try:
+                self.transfer_client.operation_ls(local_endpoint, path=os.path.dirname(data_path))
+                logger.debug("Successfully connected to Globus Connect Personal endpoint "
+                             f"'{local_endpoint}'")
+            except globus_sdk.exc.TransferAPIError as e:
+
+                # Unable to connect
+                if e.http_status == 502:
+                    raise exc.EndpointUnavailable(f"Unable to connect to local endpoint "
+                                                  f"'{local_endpoint}'. Please verify that Globus "
+                                                  "Connect Personal is running.")
+                # Forbidden
+                elif e.http_status == 403:
+                    raise exc.EndpointUnavailable(f"Unable to access '{data_path}' on local "
+                                                  f"endpoint '{local_endpoint}'. Please set the "
+                                                  "access preferences in Globus Connect Personal "
+                                                  "to permit access.")
+
+                else:
+                    raise exc.EndpointUnavailable(e.message)
+
             # Populate Transfer fields in Flow
             flow_input.update({
                 "source_endpoint_id": local_endpoint,
@@ -346,9 +368,10 @@ class CfdeClient:
                 "cfde_ep_url": flow_info["cfde_ep_url"],
                 "is_directory": False,
             })
-        # Otherwise, we must PUT the BDBag on the server
+
+        # Otherwise, HTTP PUT the BDBag on the server
         else:
-            logger.debug("GCP Not installed, uploading with HTTP PUT instead")
+            logger.debug("Uploading with HTTPS PUT")
             data_url = "{}{}".format(flow_info["cfde_ep_url"], dest_path)
             globus_http.upload(data_path, data_url, self.https_authorizer)
             flow_input.update({
