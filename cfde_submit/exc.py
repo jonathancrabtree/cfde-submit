@@ -11,13 +11,23 @@ class CfdeClientException(Exception):
     pass
 
 
-class EndpointUnavailable(CfdeClientException):
-    """Unable to view globus connect personal endpoint"""
+class ValidationException(CfdeClientException):
+    """Something didn't validate"""
     pass
 
 
 class InvalidInput(CfdeClientException):
     """A dataset given to the client was not valid"""
+
+
+class RemoteConfigException(CfdeClientException):
+    """There was a problem with the catalog"""
+    pass
+
+
+class PermissionDenied(CfdeClientException):
+    """The user needs to be added to a Globus Group"""
+    pass
 
 
 class NotLoggedIn(CfdeClientException):
@@ -30,20 +40,5 @@ class OutdatedVersion(CfdeClientException):
     pass
 
 
-class PermissionDenied(CfdeClientException):
-    """The user needs to be added to a Globus Group"""
-    pass
-
-
-class RemoteConfigException(CfdeClientException):
-    """There was a problem with the catalog"""
-    pass
-
-
 class SubmissionsUnavailable(CfdeClientException):
-    pass
-
-
-class ValidationException(CfdeClientException):
-    """Something didn't validate"""
     pass
