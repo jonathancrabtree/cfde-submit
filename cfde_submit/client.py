@@ -5,7 +5,6 @@ import json
 import logging.config
 import os
 import requests
-
 from .version import __version__ as VERSION
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
@@ -190,7 +189,8 @@ class CfdeClient:
             return self.__transfer_client
 
         transfer_token = self.tokens[self.transfer_scope]['access_token']
-        self.__transfer_client = globus_sdk.TransferClient(authorizer=globus_sdk.AccessTokenAuthorizer(transfer_token))
+        self.__transfer_client = globus_sdk.TransferClient(
+            authorizer=globus_sdk.AccessTokenAuthorizer(transfer_token))
         return self.__transfer_client
 
     @property
@@ -245,9 +245,9 @@ class CfdeClient:
             if raise_exception is True:
                 raise
 
-    def start_deriva_flow(self, data_path, dcc_id, catalog_id=None, schema=None, server=None, output_dir=None,
-                          delete_dir=False, handle_git_repos=True, dry_run=False, test_sub=False, globus=False,
-                          **kwargs):
+    def start_deriva_flow(self, data_path, dcc_id, catalog_id=None, schema=None, server=None,
+                          output_dir=None, delete_dir=False, handle_git_repos=True,
+                          dry_run=False, test_sub=False, globus=False, **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
 
         Arguments:
@@ -336,23 +336,26 @@ class CfdeClient:
             local_endpoint = globus_sdk.LocalGlobusConnectPersonal().endpoint_id
             logger.debug(f'Local endpoint: {local_endpoint}')
             if not local_endpoint:
-                raise exc.EndpointUnavailable("Globus Connect Personal installation not found. To install, please visit"
-                                              " https://www.globus.org/globus-connect-personal")
+                raise exc.EndpointUnavailable("Globus Connect Personal installation not found. To "
+                                              "install, please visit "
+                                              "https://www.globus.org/globus-connect-personal")
             try:
-                self.transfer_client.operation_ls(local_endpoint)
                 self.transfer_client.operation_ls(local_endpoint, path=os.path.dirname(data_path))
-                logger.debug(f"Successfully connected to Globus Connect Personal endpoint '{local_endpoint}'")
+                logger.debug("Successfully connected to Globus Connect Personal endpoint "
+                             f"'{local_endpoint}'")
             except globus_sdk.exc.TransferAPIError as e:
 
                 # Unable to connect
                 if e.http_status == 502:
-                    raise exc.EndpointUnavailable(f"Unable to connect to local endpoint '{local_endpoint}'. "
-                                                  f"Please verify that Globus Connect Personal is running.")
+                    raise exc.EndpointUnavailable(f"Unable to connect to local endpoint "
+                                                  f"'{local_endpoint}'. Please verify that Globus "
+                                                  "Connect Personal is running.")
                 # Forbidden
                 elif e.http_status == 403:
-                    raise exc.EndpointUnavailable(f"Unable to access '{data_path}' on local endpoint "
-                                                  f"'{local_endpoint}'. Please set the access preferences in Globus "
-                                                  "Connect Personal to permit access.")
+                    raise exc.EndpointUnavailable(f"Unable to access '{data_path}' on local "
+                                                  f"endpoint '{local_endpoint}'. Please set the "
+                                                  "access preferences in Globus Connect Personal "
+                                                  "to permit access.")
 
                 else:
                     raise exc.EndpointUnavailable(e.message)

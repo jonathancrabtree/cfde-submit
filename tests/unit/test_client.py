@@ -1,6 +1,7 @@
 import pytest
 from globus_automate_client.flows_client import ALL_FLOW_SCOPES
 from cfde_submit import client, exc
+from unittest.mock import patch
 
 
 def test_logged_out(logged_out):
@@ -62,15 +63,14 @@ def test_start_deriva_flow_http(logged_in, mock_validation, mock_remote_config, 
 
 
 def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, mock_flows_client,
-                               mock_upload, mock_gcp_installed, mock_get_bag):
+                               mock_upload, mock_gcp_installed, mock_get_bag, mock_globus_sdk):
     mock_validation.return_value = "/home/cfde-user/bagged_path.zip"
-    client.CfdeClient().start_deriva_flow("bagged_path.zip", "my_dcc")
+    client.CfdeClient().start_deriva_flow("bagged_path.zip", "my_dcc", globus=True)
 
     assert mock_validation.called
     assert not mock_upload.called
     assert mock_flows_client.get_flow.called
     assert mock_flows_client.run_flow.called
-
     _, args, kwargs = mock_flows_client.run_flow.mock_calls[0]
     flow_id, flow_scope, flow_input = args
     assert flow_id == 'prod_flow_id'
@@ -91,7 +91,7 @@ def test_start_deriva_flow_force_http(logged_in, mock_validation, mock_remote_co
                                       mock_flows_client, mock_upload, mock_gcp_installed,
                                       mock_get_bag):
     mock_validation.return_value = "/home/cfde-user/bagged_path.zip"
-    client.CfdeClient().start_deriva_flow("bagged_path.zip", "my_dcc", force_http=True)
+    client.CfdeClient().start_deriva_flow("bagged_path.zip", "my_dcc")
     assert mock_validation.called
     assert mock_upload.called
     assert mock_flows_client.get_flow.called
@@ -110,3 +110,15 @@ def test_client_permission_denied(logged_in, mock_remote_config, mock_flows_clie
     mock_flows_client.get_flow.side_effect = mock_globus_api_error
     with pytest.raises(exc.PermissionDenied):
         client.CfdeClient().check()
+
+
+@patch('globus_sdk.LocalGlobusConnectPersonal.endpoint_id', None)
+def test_transfer_client_not_installed(logged_in, mock_validation, mock_get_bag, mock_globus_sdk):
+    with pytest.raises(exc.EndpointUnavailable):
+        client.CfdeClient().start_deriva_flow("path_to_executable.zip", "my_dcc", globus=True)
+
+
+def test_transfer_client_local_endpoint_error(logged_in, mock_validation, mock_get_bag,
+                                              mock_globus_sdk, mock_globus_api_error):
+    with pytest.raises(exc.EndpointUnavailable):
+        client.CfdeClient().start_deriva_flow("path_to_executable.zip", "my_dcc", globus=True)

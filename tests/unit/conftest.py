@@ -107,6 +107,7 @@ def logged_in(monkeypatch, mock_remote_config):
         'https://auth.globus.org/scopes/dev_cfde_ep_id/https',
         'https://auth.globus.org/scopes/staging_cfde_ep_id/https',
         'https://auth.globus.org/scopes/prod_cfde_ep_id/https',
+        'urn:globus:auth:scope:transfer.api.globus.org:all',
     ] + CONFIG["ALL_SCOPES"]
     mock_tokens = {
         scope: dict(access_token=f"{scope}_access_token")
@@ -123,3 +124,9 @@ def mock_globus_api_error(monkeypatch):
         pass
     monkeypatch.setattr(globus_sdk, 'GlobusAPIError', MockGlobusAPIError)
     return globus_sdk.GlobusAPIError
+
+
+@pytest.fixture
+def mock_globus_sdk(monkeypatch):
+    setattr(globus_sdk.TransferClient, "operation_ls", PropertyMock())
+    return globus_sdk
