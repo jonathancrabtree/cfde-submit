@@ -24,7 +24,7 @@ jobs:
              pip install -e .
 
       - name: Linter
-        run: flake8 cfde_submit
+        run: flake8
 
       - name: Unit tests
-        run: pytest cfde_submit
+        run: pytest
