@@ -18,6 +18,7 @@ def upload(data_path, destination_url, authorizer):
             with an access_token scoped for the Globus HTTPS server. NOTE:
             This differs between http servers, make sure you passed in the correct one!
     """
+    logger.debug("No Globus Endpoint detected; using HTTP upload instead")
     headers = {}
     authorizer.set_authorization_header(headers)
 
