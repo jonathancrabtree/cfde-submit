@@ -5,6 +5,8 @@ import json
 import logging.config
 import os
 import requests
+import sys
+import textwrap
 from .version import __version__ as VERSION
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
@@ -227,16 +229,25 @@ class CfdeClient:
             try:
                 flow_info = self.remote_config["FLOWS"][self.service_instance]
                 self.flow_client.get_flow(flow_info["flow_id"])
-            except globus_sdk.GlobusAPIError as e:
+            except (globus_sdk.GlobusAPIError, globus_sdk.exc.GlobusAPIError) as e:
                 logger.debug(str(e))
-                if e.http_status == 405:
-                    raise exc.PermissionDenied(
-                                "Unable to view ingest Flow. Are you in the CFDE DERIVA "
-                                "Demo Globus Group? Check your membership or apply for access "
-                                "here: \nhttps://app.globus.org/groups/a437abe3-c9a4-11e9-b441-"
-                                "0efb3ba9a670/about")
-                else:
+                if e.http_status not in [404, 405]:
                     raise
+                print(f"GlobusAPIError: '{e}'\n")
+                error_message = ("This error is likely due to incorrect permissions. Please use "
+                                 "the 'Onboarding to the Submission System' page at "
+                                 "https://github.com/nih-cfde/published-documentation/wiki"
+                                 "/Onboarding-to-the-CFDE-Portal-Submission-System to change your "
+                                 "permissions. Only users with the Submitter role can push data to "
+                                 "the submission system. If you have already sent in a request "
+                                 "for Submitter status, but are getting this error, be sure that "
+                                 "you fully accepted the Globus invitation to your Submitter group."
+                                 " You will need to click the 'Click here to apply for membership' "
+                                 "text in the invitation message and follow instructions there "
+                                 "before doing a submission.")
+                print(textwrap.fill(error_message, 120), "\n")
+                sys.exit(-1)
+
             self.ready = True
             logger.info('Check PASSED, client is ready use flows.')
         except Exception:
