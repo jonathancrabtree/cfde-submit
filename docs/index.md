@@ -24,7 +24,7 @@ Within each Common Fund initiative, a **Data Coordinating Center (DCC)** is resp
 
 CFDE's goal is to make it easier for researchers to discover and use Common Fund data. The **CFDE Coordinating Center (CFDE-CC)** provides a website, the **[CFDE Portal](https://app.nih-cfde.org/)**, to discover data available from the Common Fund, and is also working with each DCC to establish consistent data access mechanisms.
 
-Each DCC tells the CFDE Portal about the data they manage and make available to researchers. CFDE has defined a model for DCCs to use when describing their data holdings: the **[Crosscut Metadata Model (C2M2)](https://docs.nih-cfde.org/en/latest/specifications-and-documentation/draft-C2M2_specification_with_Levels/)**. A description of a DCC's data in the C2M2 model is called a **C2M2 instance**. The `cfde-submit` tool is the mechanism by which a DCC shares a new (revised or expanded) C2M2 instance with the CFDE Portal.
+Each DCC tells the CFDE Portal about the data they manage and make available to researchers. CFDE has defined a model for DCCs to use when describing their data holdings: the **[Crosscut Metadata Model (C2M2)](https://docs.nih-cfde.org/en/latest/c2m2/draft-C2M2_specification/)**. A description of a DCC's data in the C2M2 model is called a **C2M2 instance**. The `cfde-submit` tool is the mechanism by which a DCC shares a new (revised or expanded) C2M2 instance with the CFDE Portal.
 
 ### Register your DCC
 
@@ -38,7 +38,7 @@ Once your DCC has been registered with CFDE, your Principal Investigator (or des
 
 The `cfde-submit` tool takes a valid C2M2 instance as its input. Any any given time, each DCC has a single C2M2 instance visible in the CFDE portal's public views. Of course, you may revise your DCC's C2M2 instance when your DCC's data changes. You may submit several versions of your DCC's C2M2 instance and review each in a private Data Review area in the portal before approving a single instance for use in the public portal views.
 
-Constructing a C2M2 instance requires comprehensive knowledge of your DCC's data. The [C2M2 documentation](https://docs.nih-cfde.org/en/latest/c2m2/draft-C2M2_specification_with_Levels/) describes the data model and how to construct a C2M2 instance for your DCC's data.
+Constructing a C2M2 instance requires comprehensive knowledge of your DCC's data. The [C2M2 documentation](https://docs.nih-cfde.org/en/latest/c2m2/draft-C2M2_specification/) describes the data model and how to construct a C2M2 instance for your DCC's data.
 
 When using the `cfde-submit` tool, your C2M2 instance must be contained in a folder on your computer, and it must include the JSON Schema document appropriate for the type of C2M2 instance you are submitting. 
 
