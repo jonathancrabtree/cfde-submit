@@ -108,20 +108,16 @@ def test_client_permission_denied_404(logged_in, mock_remote_config, mock_flows_
                                       mock_globus_api_error):
     mock_globus_api_error.http_status = 404
     mock_flows_client.get_flow.side_effect = mock_globus_api_error
-    with pytest.raises(SystemExit) as e:
+    with pytest.raises(exc.PermissionDenied):
         client.CfdeClient().check()
-        assert e.type == SystemExit
-        assert e.value.code == -1
 
 
 def test_client_permission_denied_405(logged_in, mock_remote_config, mock_flows_client,
                                       mock_globus_api_error):
     mock_globus_api_error.http_status = 405
     mock_flows_client.get_flow.side_effect = mock_globus_api_error
-    with pytest.raises(SystemExit) as e:
+    with pytest.raises(exc.PermissionDenied):
         client.CfdeClient().check()
-        assert e.type == SystemExit
-        assert e.value.code == -1
 
 
 @patch('globus_sdk.LocalGlobusConnectPersonal.endpoint_id', None)

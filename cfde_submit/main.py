@@ -110,16 +110,13 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, 
                                                dry_run=dry_run, test_sub=test_submission,
                                                globus=globus, **bag_kwargs)
         else:
-            click.secho("Aborted. No data submitted.", fg="yellow")
-            return
+            exit_on_exception("Aborted. No data submitted.")
     except (exc.SubmissionsUnavailable, exc.InvalidInput, exc.ValidationException,
             exc.EndpointUnavailable) as e:
-        click.secho(str(e), fg='red')
-        return
+        exit_on_exception(e)
     except Exception as e:
         logger.exception(e)
-        print("Error while starting Flow: {}".format(repr(e)))
-        return
+        exit_on_exception(repr(e))
     else:
         if not start_res["success"]:
             print("Error during Flow startup: {}".format(start_res["error"]))
@@ -193,7 +190,7 @@ def login_user(force_login=False, no_browser=False, no_local_server=False, quiet
             click.secho("You are authenticated and your tokens have been cached.", fg='green')
         cfde.check()
     except exc.CfdeClientException as ce:
-        click.secho(str(ce), fg='red', err=True)
+        exit_on_exception(ce)
 
 
 @cli.command()
@@ -255,3 +252,8 @@ def yes_or_no(question):
     else:
         print("Please answer with 'y' or 'n'\n")
         return yes_or_no(question)
+
+
+def exit_on_exception(e):
+    """ Print an exception and exit with an error """
+    sys.exit(click.wrap_text(click.style(str(e), fg='red')))

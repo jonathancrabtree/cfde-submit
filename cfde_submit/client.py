@@ -5,8 +5,6 @@ import json
 import logging.config
 import os
 import requests
-import sys
-import textwrap
 from .version import __version__ as VERSION
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
@@ -230,23 +228,20 @@ class CfdeClient:
                 flow_info = self.remote_config["FLOWS"][self.service_instance]
                 self.flow_client.get_flow(flow_info["flow_id"])
             except (globus_sdk.GlobusAPIError, globus_sdk.exc.GlobusAPIError) as e:
-                logger.debug(str(e))
+                logger.exception(e)
                 if e.http_status not in [404, 405]:
                     raise
-                print(f"GlobusAPIError: '{e}'\n")
-                error_message = ("This error is likely due to incorrect permissions. Please use "
-                                 "the 'Onboarding to the Submission System' page at "
-                                 "https://github.com/nih-cfde/published-documentation/wiki"
-                                 "/Onboarding-to-the-CFDE-Portal-Submission-System to change your "
-                                 "permissions. Only users with the Submitter role can push data to "
-                                 "the submission system. If you have already sent in a request "
-                                 "for Submitter status, but are getting this error, be sure that "
-                                 "you fully accepted the Globus invitation to your Submitter group."
-                                 " You will need to click the 'Click here to apply for membership' "
-                                 "text in the invitation message and follow instructions there "
-                                 "before doing a submission.")
-                print(textwrap.fill(error_message, 120), "\n")
-                sys.exit(-1)
+                error_message = ("Permission denied. Please use the 'Onboarding to the Submission "
+                                 "System' page at https://github.com/nih-cfde/published-documentati"
+                                 "on/wiki/Onboarding-to-the-CFDE-Portal-Submission-System to "
+                                 "change your permissions. Only users with the Submitter role can "
+                                 "push data to the submission system. If you have already "
+                                 "sent in a request for Submitter status, but are getting this "
+                                 "error, be sure that you fully accepted the Globus invitation to "
+                                 "your Submitter group. You will need to click the 'Click here to "
+                                 "apply for membership' text in the invitation message and follow "
+                                 "instructions there before doing a submission.")
+                raise exc.PermissionDenied(error_message)
 
             self.ready = True
             logger.info('Check PASSED, client is ready use flows.')
