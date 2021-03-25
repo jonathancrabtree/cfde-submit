@@ -112,10 +112,9 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, 
         else:
             exit_on_exception("Aborted. No data submitted.")
     except (exc.SubmissionsUnavailable, exc.InvalidInput, exc.ValidationException,
-            exc.EndpointUnavailable) as e:
+            exc.EndpointUnavailable, FileExistsError) as e:
         exit_on_exception(e)
     except Exception as e:
-        logger.exception(e)
         exit_on_exception(repr(e))
     else:
         if not start_res["success"]:
