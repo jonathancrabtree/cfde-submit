@@ -545,7 +545,7 @@ class CfdeClient:
         Verify that a user specified dcc exists in the deriva registry
         """
         credentials = {"bearer-token":
-                           self.__native_client.load_tokens_by_scope()[self.deriva_scope]}
+                       self.__native_client.load_tokens_by_scope()[self.deriva_scope]}
         if self.__service_instance == "prod":
             server = "app.nih-cfde.org"
         elif self.__service_instance == "staging":

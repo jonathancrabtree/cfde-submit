@@ -173,8 +173,8 @@ def test_start_deriva_flow_invalid_long_dcc_throws_exception(logged_in, mock_val
 
 
 def test_start_deriva_flow_invalid_short_dcc_throws_exception(logged_in, mock_validation,
-                                                             mock_remote_config, mock_flows_client,
-                                                             mock_upload, mock_get_bag):
+                                                              mock_remote_config, mock_flows_client,
+                                                              mock_upload, mock_get_bag):
     mock_validation.return_value = "/home/cfde-user/bagged_path.zip"
     with pytest.raises(exc.InvalidInput):
         client.CfdeClient().start_deriva_flow("bagged_path.zip", "gtexx")
