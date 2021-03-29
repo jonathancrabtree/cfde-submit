@@ -5,8 +5,8 @@ import json
 import logging.config
 import os
 import requests
+import urllib.request
 from .version import __version__ as VERSION
-from cfde_deriva.registry import Registry
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
 
@@ -36,7 +36,6 @@ class CfdeClient:
         self.__flow_client = None
         self.__transfer_client = None
         self.transfer_scope = CONFIG["TRANSFER_SCOPE"]
-        self.deriva_scope = CONFIG["DERIVA_SCOPE"]
         self.local_config = fair_research_login.ConfigParserTokenStorage(
             filename=self.config_filename
         )
@@ -121,7 +120,7 @@ class CfdeClient:
     @property
     def scopes(self):
         return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope, self.flow_scope,
-                                       self.transfer_scope, self.deriva_scope]
+                                       self.transfer_scope]
 
     @property
     def gcs_https_scope(self):
@@ -544,14 +543,14 @@ class CfdeClient:
         """
         Verify that a user specified dcc exists in the deriva registry
         """
-        credentials = {"bearer-token":
-                       self.__native_client.load_tokens_by_scope()[self.deriva_scope]}
         if self.__service_instance == "prod":
             server = "app.nih-cfde.org"
         elif self.__service_instance == "staging":
             server = "app-staging.nih-cfde.org"
         elif self.__service_instance == "dev":
             server = "app-dev.nih-cfde.org"
-        registry = Registry('https', server, credentials=credentials)
-        dccs = [x['id'] for x in registry.get_dcc()]
+        url = f"https://{server}/ermrest/catalog/registry/entity/CFDE:dcc"
+        with urllib.request.urlopen(url) as page:
+            data = json.loads(page.read().decode())
+            dccs = [x['id'] for x in data]
         return dcc in dccs
