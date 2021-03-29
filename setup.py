@@ -34,10 +34,10 @@ setup(
         "requests>=2.22.0"
     ],
     python_requires=">=3.6",
-    license = 'Apache 2.0',
+    license='Apache 2.0',
     maintainer='CFDE',
     maintainer_email='',
-    classifiers = [
+    classifiers=[
         'Intended Audience :: Science/Research',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
