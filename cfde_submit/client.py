@@ -6,6 +6,7 @@ import logging.config
 import os
 import requests
 from .version import __version__ as VERSION
+from cfde_deriva.registry import Registry
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
 
@@ -34,7 +35,8 @@ class CfdeClient:
         self.__tokens = {}
         self.__flow_client = None
         self.__transfer_client = None
-        self.transfer_scope = "urn:globus:auth:scope:transfer.api.globus.org:all"
+        self.transfer_scope = CONFIG["TRANSFER_SCOPE"]
+        self.deriva_scope = CONFIG["DERIVA_SCOPE"]
         self.local_config = fair_research_login.ConfigParserTokenStorage(
             filename=self.config_filename
         )
@@ -118,7 +120,8 @@ class CfdeClient:
 
     @property
     def scopes(self):
-        return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope, self.flow_scope, self.transfer_scope]
+        return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope, self.flow_scope,
+                                       self.transfer_scope, self.deriva_scope]
 
     @property
     def gcs_https_scope(self):
@@ -223,6 +226,7 @@ class CfdeClient:
                 raise exc.SubmissionsUnavailable(
                     "Submissions to nih-cfde.org are temporarily offline. Please check "
                     "with out administrators for further details.")
+
             # Verify user has permission to view Flow
             try:
                 flow_info = self.remote_config["FLOWS"][self.service_instance]
@@ -307,6 +311,13 @@ class CfdeClient:
                                  "a named catalog ('{}'). Retry without specifying "
                                  "a schema.".format(schema, catalog_id))
             schema = catalogs[catalog_id]
+
+        # Verify the dcc is valid
+        if ':' not in dcc_id:
+            dcc_id = f"cfde_registry_dcc:{dcc_id}"
+        if not self.valid_dcc(dcc_id):
+            raise exc.InvalidInput("Error: The dcc you've specified is not valid. Please double "
+                                   "check the spelling and try again.")
 
         # Coerces the BDBag path to a .zip archive
         data_path = bdbag_utils.get_bag(
@@ -528,3 +539,19 @@ class CfdeClient:
             }
         else:
             print(clean_status)
+
+    def valid_dcc(self, dcc):
+        """
+        Verify that a user specified dcc exists in the deriva registry
+        """
+        credentials = {"bearer-token":
+                           self.__native_client.load_tokens_by_scope()[self.deriva_scope]}
+        if self.__service_instance == "prod":
+            server = "app.nih-cfde.org"
+        elif self.__service_instance == "staging":
+            server = "app-staging.nih-cfde.org"
+        elif self.__service_instance == "dev":
+            server = "app-dev.nih-cfde.org"
+        registry = Registry('https', server, credentials=credentials)
+        dccs = [x['id'] for x in registry.get_dcc()]
+        return dcc in dccs

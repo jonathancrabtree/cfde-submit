@@ -95,6 +95,12 @@ def mock_validation(monkeypatch):
 
 
 @pytest.fixture
+def mock_dcc_check(monkeypatch):
+    monkeypatch.setattr(cfde_submit.CfdeClient, "valid_dcc", Mock())
+    return cfde_submit.CfdeClient.valid_dcc
+
+
+@pytest.fixture
 def logged_out(monkeypatch):
     load = Mock(side_effect=fair_research_login.LoadError())
     monkeypatch.setattr(fair_research_login.NativeClient, "load_tokens_by_scope", load)

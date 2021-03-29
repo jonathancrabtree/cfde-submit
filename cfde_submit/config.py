@@ -53,8 +53,11 @@ CONFIG = {
     # from the server responsible for holding data (for instance --service-instance dev)
     "HTTPS_SCOPE": "https://auth.globus.org/scopes/0e57d793-f1ac-4eeb-a30f-643b082d68ec/https",
     "AUTOMATE_SCOPES": list(globus_automate_client.flows_client.ALL_FLOW_SCOPES),
+    "DERIVA_SCOPE": "https://auth.globus.org/scopes/app.nih-cfde.org/deriva_all",
+    "TRANSFER_SCOPE": "urn:globus:auth:scope:transfer.api.globus.org:all",
     # Format for BDBag archives
     "ARCHIVE_FORMAT": "zip"
 }
 # Add all necessary scopes together for Auth call
-CONFIG["ALL_SCOPES"] = CONFIG["AUTOMATE_SCOPES"] + [CONFIG["HTTPS_SCOPE"]]
+CONFIG["ALL_SCOPES"] = CONFIG["AUTOMATE_SCOPES"] + [CONFIG["HTTPS_SCOPE"]] + \
+                       [CONFIG['DERIVA_SCOPE']]
