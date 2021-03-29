@@ -5,7 +5,7 @@ import json
 import logging.config
 import os
 import requests
-
+import urllib.request
 from .version import __version__ as VERSION
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
@@ -37,6 +37,8 @@ class CfdeClient:
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
         self.__flow_client = None
+        self.__transfer_client = None
+        self.transfer_scope = CONFIG["TRANSFER_SCOPE"]
         self.local_config = fair_research_login.ConfigParserTokenStorage(
             filename=self.config_filename
         )
@@ -120,7 +122,8 @@ class CfdeClient:
 
     @property
     def scopes(self):
-        return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope, self.flow_scope]
+        return CONFIG["ALL_SCOPES"] + [self.gcs_https_scope, self.flow_scope,
+                                       self.transfer_scope]
 
     @property
     def gcs_https_scope(self):
@@ -215,20 +218,27 @@ class CfdeClient:
                 raise exc.SubmissionsUnavailable(
                     "Submissions to nih-cfde.org are temporarily offline. Please check "
                     "with out administrators for further details.")
+
             # Verify user has permission to view Flow
             try:
                 flow_info = self.remote_config["FLOWS"][self.service_instance]
                 self.flow_client.get_flow(flow_info["flow_id"])
-            except globus_sdk.GlobusAPIError as e:
-                logger.debug(str(e))
-                if e.http_status == 405:
-                    raise exc.PermissionDenied(
-                                "Unable to view ingest Flow. Are you in the CFDE DERIVA "
-                                "Demo Globus Group? Check your membership or apply for access "
-                                "here: \nhttps://app.globus.org/groups/a437abe3-c9a4-11e9-b441-"
-                                "0efb3ba9a670/about")
-                else:
+            except (globus_sdk.GlobusAPIError, globus_sdk.exc.GlobusAPIError) as e:
+                logger.exception(e)
+                if e.http_status not in [404, 405]:
                     raise
+                error_message = ("Permission denied. Please use the 'Onboarding to the Submission "
+                                 "System' page at https://github.com/nih-cfde/published-documentati"
+                                 "on/wiki/Onboarding-to-the-CFDE-Portal-Submission-System to "
+                                 "change your permissions. Only users with the Submitter role can "
+                                 "push data to the submission system. If you have already "
+                                 "sent in a request for Submitter status, but are getting this "
+                                 "error, be sure that you fully accepted the Globus invitation to "
+                                 "your Submitter group. You will need to click the 'Click here to "
+                                 "apply for membership' text in the invitation message and follow "
+                                 "instructions there before doing a submission.")
+                raise exc.PermissionDenied(error_message)
+
             self.ready = True
             logger.info('Check PASSED, client is ready use flows.')
         except Exception:
@@ -302,6 +312,13 @@ class CfdeClient:
                                  "a named catalog ('{}'). Retry without specifying "
                                  "a schema.".format(schema, catalog_id))
             schema = catalogs[catalog_id]
+
+        # Verify the dcc is valid
+        if ':' not in dcc_id:
+            dcc_id = f"cfde_registry_dcc:{dcc_id}"
+        if not self.valid_dcc(dcc_id):
+            raise exc.InvalidInput("Error: The dcc you've specified is not valid. Please double "
+                                   "check the spelling and try again.")
 
         # Coerces the BDBag path to a .zip archive
         data_path = bdbag_utils.get_bag(
@@ -499,3 +516,19 @@ class CfdeClient:
             }
         else:
             print(clean_status)
+
+    def valid_dcc(self, dcc):
+        """
+        Verify that a user specified dcc exists in the deriva registry
+        """
+        if self.__service_instance == "prod":
+            server = "app.nih-cfde.org"
+        elif self.__service_instance == "staging":
+            server = "app-staging.nih-cfde.org"
+        elif self.__service_instance == "dev":
+            server = "app-dev.nih-cfde.org"
+        url = f"https://{server}/ermrest/catalog/registry/entity/CFDE:dcc"
+        with urllib.request.urlopen(url) as page:
+            data = json.loads(page.read().decode())
+            dccs = [x['id'] for x in data]
+        return dcc in dccs
