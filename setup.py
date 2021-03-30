@@ -23,7 +23,7 @@ setup(
     cfde-submit=cfde_submit.main:cli
     ''',
     install_requires=[
-        "bdbag>=1.5.5",
+        "bdbag>=1.6.0",
         "Click>=7.0",
         "datapackage>=1.10.0",
         "fair-research-login>=0.2.0",
@@ -34,10 +34,10 @@ setup(
         "requests>=2.22.0"
     ],
     python_requires=">=3.6",
-    license = 'Apache 2.0',
+    license='Apache 2.0',
     maintainer='CFDE',
     maintainer_email='',
-    classifiers = [
+    classifiers=[
         'Intended Audience :: Science/Research',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
