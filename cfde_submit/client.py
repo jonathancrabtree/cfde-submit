@@ -33,7 +33,7 @@ class CfdeClient:
         try:
             with open(self.config_filename) as f:
                 config_data = f.readlines()
-            if any(l for l in config_data if l.startswith('flows_automated_tests')):
+            if any(x for x in config_data if x.startswith('flows_automated_tests')):
                 os.unlink(self.config_filename)
         except FileNotFoundError:
             pass
