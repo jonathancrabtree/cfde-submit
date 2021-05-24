@@ -30,6 +30,14 @@ class CfdeClient:
                     be called instead.
                     **Default**: ``None``.
         """
+        try:
+            with open(self.config_filename) as f:
+                config_data = f.readlines()
+            if any(l for l in config_data if l.startswith('flows_automated_tests')):
+                os.unlink(self.config_filename)
+        except FileNotFoundError:
+            pass
+
         self.__service_instance = os.getenv("CFDE_SUBMIT_SERVICE_INSTANCE", "prod")
         self.__remote_config = {}  # managed by property
         self.__tokens = {}
@@ -48,7 +56,7 @@ class CfdeClient:
         self.__native_client = fair_research_login.NativeClient(client_id=self.client_id,
                                                                 app_name=self.app_name,
                                                                 token_storage=self.local_config,
-                                                                code_handlers=code_handlers,)
+                                                                code_handlers=code_handlers, )
         self.last_flow_run = {}
         # Fetch dynamic config info
         self.tokens = tokens or {}
