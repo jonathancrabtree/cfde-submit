@@ -21,6 +21,7 @@ def cli():
 @click.argument("data-path", nargs=1, type=click.Path(exists=True))
 @click.option("--dcc-id", "--dcc", default=None, show_default=True)
 @click.option("--catalog", default=None, show_default=True)
+@click.option("--disable-validation", is_flag=True, default=False, show_default=True)
 @click.option("--schema", default=None, show_default=True)
 @click.option("--output-dir", default=None, show_default=True, type=click.Path(exists=False))
 @click.option("--delete-dir/--keep-dir", is_flag=True, default=False, show_default=True)
@@ -34,7 +35,8 @@ def cli():
 @click.option("--bag-kwargs-file", type=click.Path(exists=True), default=None)
 @click.option("--client-state-file", type=click.Path(exists=True), default=None)
 def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, dry_run,
-        test_submission, verbose, server, globus, bag_kwargs_file, client_state_file):
+        test_submission, verbose, server, globus, disable_validation, bag_kwargs_file,
+        client_state_file):
     """Start the Globus Automate Flow to ingest CFDE data into DERIVA."""
 
     # Set log levels
@@ -108,7 +110,8 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, 
                                                delete_dir=delete_dir,
                                                handle_git_repos=(not ignore_git), server=server,
                                                dry_run=dry_run, test_sub=test_submission,
-                                               globus=globus, **bag_kwargs)
+                                               globus=globus, disable_validation=disable_validation,
+                                               **bag_kwargs)
         else:
             exit_on_exception("Aborted. No data submitted.")
     except (exc.SubmissionsUnavailable, exc.InvalidInput, exc.ValidationException,

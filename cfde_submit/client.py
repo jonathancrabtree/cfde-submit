@@ -264,7 +264,8 @@ class CfdeClient:
 
     def start_deriva_flow(self, data_path, dcc_id, catalog_id=None, schema=None, server=None,
                           output_dir=None, delete_dir=False, handle_git_repos=True,
-                          dry_run=False, test_sub=False, globus=False, **kwargs):
+                          dry_run=False, test_sub=False, globus=False, disable_validation=False,
+                          **kwargs):
         """Start the Globus Automate Flow to ingest CFDE data into DERIVA.
 
         Arguments:
@@ -332,7 +333,8 @@ class CfdeClient:
             handle_git_repos=handle_git_repos, bdbag_kwargs=kwargs
         )
         # Raises exc.ValidationException if something doesn't match up with the schema
-        validation.validate_user_submission(data_path, schema)
+        if not disable_validation:
+            validation.validate_user_submission(data_path, schema)
 
         flow_info = self.remote_config["FLOWS"][self.service_instance]
         dest_path = "{}{}".format(flow_info["cfde_ep_path"], os.path.basename(data_path))
