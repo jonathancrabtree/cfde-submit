@@ -258,4 +258,4 @@ def yes_or_no(question):
 
 def exit_on_exception(e):
     """ Print an exception and exit with an error """
-    sys.exit(click.wrap_text(click.style(str(e), fg='red')))
+    sys.exit(click.style(str(e), fg='red'))
