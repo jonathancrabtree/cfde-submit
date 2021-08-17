@@ -3,7 +3,7 @@ import logging
 
 from bdbag import bdbag_api
 from frictionless import FrictionlessException, Package, validate
-from cfde_submit.exc import ValidationException
+from cfde_submit.exc import ValidationException, InvalidInput
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +24,16 @@ def ts_validate(data_path, schema=None):
             raw_errors (list): The raw Exceptions generated from any validation errors.
             error (str): A formatted error message about any validation errors.
     """
-    try:
-        data_path = bdbag_api.extract_bag(data_path, temp=True)
-    except RuntimeError:
-        # data_path is not an archive
-        pass
+    if os.path.isfile(data_path):
+        archive_file = data_path
+        try:
+            data_path = bdbag_api.extract_bag(data_path, temp=True)
+        except Exception as e:
+            raise InvalidInput("Error extracting %s: %s" % (archive_file, e))
+        if not bdbag_api.is_bag(data_path):
+            raise InvalidInput("Input %s does not appear to be a valid BDBag. This tool requires a"
+                               "prepared BDBag archive when invoked on an existing archive file."
+                               % archive_file)
 
     # If data_path is a directory, find JSON
     if os.path.isdir(data_path):
