@@ -32,7 +32,7 @@ def ts_validate(data_path, schema=None):
             raise InvalidInput("Error extracting %s: %s" % (archive_file, e))
         if not bdbag_api.is_bag(data_path):
             raise InvalidInput("Input %s does not appear to be a valid BDBag. This tool requires a"
-                               "prepared BDBag archive when invoked on an existing archive file."
+                               " prepared BDBag archive when invoked on an existing archive file."
                                % archive_file)
 
     # If data_path is a directory, find JSON
