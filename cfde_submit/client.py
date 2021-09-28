@@ -5,6 +5,7 @@ import json
 import logging.config
 import os
 import requests
+import time
 import urllib.request
 from .version import __version__ as VERSION
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
@@ -213,6 +214,23 @@ class CfdeClient:
             at = self.tokens[self.gcs_https_scope]["access_token"]
             return globus_sdk.AccessTokenAuthorizer(at)
 
+    def get_flow_retry_500s(self, flow_id, retries=3, delay=10):
+        first_exception = None
+        for attempt in range(retries):
+            try:
+                return self.flow_client.get_flow(flow_id)
+            except (globus_sdk.GlobusAPIError, globus_sdk.exc.GlobusAPIError) as e:
+                if not first_exception:
+                    first_exception = e
+                # Retry server errors that may be intermittent
+                if 500 <= e.http_status <= 599:
+                    time.sleep(delay)
+                    continue
+                else:
+                    raise e
+        logger.error(f"Unable to retrieve automate flow after {retries} attempts")
+        raise first_exception
+
     def check(self, raise_exception=True):
         if self.ready:
             return True
@@ -237,7 +255,7 @@ class CfdeClient:
             # Verify user has permission to view Flow
             try:
                 flow_info = self.remote_config["FLOWS"][self.service_instance]
-                self.flow_client.get_flow(flow_info["flow_id"])
+                self.get_flow_retry_500s(flow_info["flow_id"])
             except (globus_sdk.GlobusAPIError, globus_sdk.exc.GlobusAPIError) as e:
                 logger.exception(e)
                 if e.http_status not in [404, 405]:
