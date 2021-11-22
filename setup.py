@@ -25,7 +25,6 @@ setup(
     install_requires=[
         "bdbag>=1.6.0",
         "click==7.1.1",
-        "datapackage>=1.10.0",
         "fair-research-login>=0.2.0",
         "frictionless==4.16.2",
         "GitPython>=3.0.4",
