@@ -20,4 +20,8 @@ Alternatively, you can also use conda to create a new virtual environment.
 4. To exit the environment run: `conda deactivate`
 
 ## Install cfde-submit
-The most recent release of `cfde-submit` can be installed via pip. While cfde_venv is active, run the command: `pip3 install cfde-submit`. This will install `cfde-submit` and all other required packages. These packages will install into your virtual environment and be added to your path. To verify the installation has succeeded, run the command `cfde-submit` to see the list of available commands.
+The most recent release of `cfde-submit` can be installed via pip. The commands below should be run while the `cfde_venv` environment is active.
+
+Please ensure pip is up to date by running the command: `pip3 install --upgrade pip`. Next, run the command: `pip3 install cfde-submit`. This will install `cfde-submit` and all other required packages. These packages will install into your virtual environment and be added to your path.
+
+To verify the installation has succeeded, run the command `cfde-submit` to see the list of available commands.

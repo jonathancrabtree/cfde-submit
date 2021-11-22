@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def ts_validate(data_path, schema=None):
-    """Validate a given TableSchema using the Datapackage package.
+    """Validate a given TableSchema using frictionless.
 
     Arguments:
         data_path (str): Path to the TableSchema JSON or BDBag directory
