@@ -26,7 +26,7 @@ Please ensure pip is up to date by running the command: `pip3 install --upgrade 
 
 To verify the installation has succeeded, run the command `cfde-submit` to see the list of available commands.
 
-### Update cfde-submit
+## Update cfde-submit
 To update the cfde-submit package to the latest version, run the commands below.
 
 ```
