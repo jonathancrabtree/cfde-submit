@@ -156,11 +156,3 @@ example if you want to unset the default DCC.
 ```
 cfde-submit reset
 ```
-
-### Updating
-To update the cfde-submit package to the latest version, run the command below.
-
-```
-python3 -m pip install --upgrade pip
-python3 -m pip install --upgrade cfde-submit
-```

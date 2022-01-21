@@ -25,3 +25,12 @@ The most recent release of `cfde-submit` can be installed via pip. The commands 
 Please ensure pip is up to date by running the command: `pip3 install --upgrade pip`. Next, run the command: `pip3 install cfde-submit`. This will install `cfde-submit` and all other required packages. These packages will install into your virtual environment and be added to your path.
 
 To verify the installation has succeeded, run the command `cfde-submit` to see the list of available commands.
+
+### Update cfde-submit
+To update the cfde-submit package to the latest version, run the commands below.
+
+```
+python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade cfde-submit
+```
+
