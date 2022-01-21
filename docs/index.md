@@ -49,16 +49,6 @@ When using `cfde-submit` to submit a new C2M2 instance, you must enter your DCC'
 
 The identifier you need for `cfde-submit` is of the form `cfde_registry_dcc:*`, where the `*` is replaced by a short form of your DCC's name. For example, the DCC identifier for The Human Microbiome Project is `cfde_registry_dcc:hmp`.
 
-
-### Check your system
-
-Here are a few things that could make `cfde-submit` not work correctly on your system.
-
-If you have [Globus Connect Personal](https://www.globus.org/globus-connect-personal) installed on your computer, `cfde-submit` will attempt to use it to transfer your C2M2 instance to CFDE.
-
-* Make sure Globus Connect Personal is running. If it is installed but not running, `cfde-submit` will start a transfer, but the transfer will not begin until you start Globus Connect Personal.
-* Make sure Globus Connect Personal has access to the folder where your C2M2 instance resides on your system. By default, Globus Connect Personal has access to your home directory on the system and everything within it. If your data is not somewhere within your home directory, or if you have changed the Preferences for Globus Connect Personal to customize its access on your system, there is a good chance `cfde-submit` will not be able to transfer your C2M2 instance. Move the C2M2 instance folder to your home directory or set the Access Preferences in Globus Connect Personal to provide access to the C2M2 instance folder.
-
 ---
 
 ## Use the tool
@@ -105,7 +95,7 @@ This command will automatically do the following things.
 - It will begin the automated processes that ingest the new C2M2 instance into a review catalog in the CFDE Portal.
 - It will let you know if the above steps were successful or not and exit.
 
-> Normally, the upload step above will upload the BDBag to CFDE-CC's server while the command runs, and you will notice a pause while the data is uploaded. The command will not complete until the upload has finished. If you have [Globus Connect Personal](https://www.globus.org/globus-connect-personal) installed, `cfde-submit run` will hand the upload off to Globus and will exit successfully as soon as the upload request is made. The upload will happen in the background as long as Globus Connect Personal is running. You may quit Globus Connect Personal (or shut your system down) before the upload completes and the upload will resume when you restart Globus Connect Personal. You will receive an email message when the upload completes.
+>The upload step above will upload the BDBag to CFDE-CC's server while the command runs, and you will notice a pause while the data is uploaded. The command will not complete until the upload has finished.
 
 You can specify the following `OPTIONS` with `cfde-submit run`.
 
@@ -117,7 +107,7 @@ You can specify the following `OPTIONS` with `cfde-submit run`.
   - ``--delete-dir`` will trigger deletion of the ``output-dir`` after processing
     is complete. If you didn't specify ``output-dir``, this option has no effect.
   - ``--ignore-git`` will prevent the client from overwriting ``output-dir`` and ``delete-dir`` to handle Git repositories.
-  - ``--force-http`` will prevent use of Globus Connect Personal if it is installed. The command will not complete until your data has been uploaded.
+  - ``--disable-validation`` will disable local validation before submission. Use this option when working with very large data to speed things up.
 
 ### Status
 
@@ -171,5 +161,6 @@ cfde-submit reset
 To update the cfde-submit package to the latest version, run the command below.
 
 ```
+python3 -m pip install --upgrade pip
 python3 -m pip install --upgrade cfde-submit
 ```

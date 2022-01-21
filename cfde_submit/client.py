@@ -214,6 +214,25 @@ class CfdeClient:
             at = self.tokens[self.gcs_https_scope]["access_token"]
             return globus_sdk.AccessTokenAuthorizer(at)
 
+    def _is_json(self, json_string):
+        try:
+            json.loads(json_string)
+        except Exception as e:
+            return False
+        return True
+
+    def _format_flow_status(self, data):
+        keys_to_ignore = ["creator_id", "manage_by", "monitor_by"]
+        result = dict()
+        for k, v in data.items():
+            if self._is_json(v):
+                v = json.loads(v)
+            if isinstance(v, dict):
+                v = self._format_flow_status(v)
+            if v and k not in keys_to_ignore:
+                result[k] = v
+        return result
+
     def get_flow_retry_500s(self, flow_id, retries=3, delay=10):
         first_exception = None
         for attempt in range(retries):
@@ -492,33 +511,22 @@ class CfdeClient:
         #       Any "FAILED" Flow has an error in the Flow itself.
         #       Therefore, "SUCCEEDED" Flows are not guaranteed to have actually succeeded.
         if flow_status["status"] == "ACTIVE":
-            clean_status += "This Flow is still in progress.\n"
+            clean_status += "This flow is still in progress.\n"
         elif flow_status["status"] == "INACTIVE":
-            clean_status += "This Flow has stalled, and may need help to resume.\n"
+            clean_status += "This flow has stalled, and may need help to resume.\n"
         elif flow_status["status"] == "SUCCEEDED":
-            clean_status += "This Flow has completed.\n"
+            clean_status += "This flow has completed.\n"
         elif flow_status["status"] == "FAILED":
-            clean_status += "This Flow has failed.\n"
-        # "Details"
-        if flow_status["details"].get("details"):
-            if flow_status["details"]["details"].get("state_name"):
-                clean_status += ("Current Flow Step: {}"
-                                 .format(flow_status["details"]["details"]["state_name"]))
-            # "cause" indicates a failure mode
-            if flow_status["details"]["details"].get("cause"):
-                cause = flow_status["details"]["details"]["cause"]
-                # Try to pretty-print massive blob of state
-                try:
-                    str_cause, dict_cause = cause.split(" '{")
-                    dict_cause = "{" + dict_cause.strip("'")
-                    dict_cause = json.loads(dict_cause)["UserState"]
-                    dict_cause.pop("prevars", None)
-                    dict_cause.pop("vars", None)
-                    dict_cause = json.dumps(dict_cause, indent=4, sort_keys=True)
-                    cause = str_cause + "\n" + dict_cause
-                except Exception:
-                    pass
-                clean_status += "Error: {}\n".format(cause)
+            clean_status += "This flow has failed.\n"
+
+        # Identify error message, if one exists
+        try:
+            cause = json.loads(flow_status["details"]["details"]["input"]["Cause"])
+            error = cause["details"]["error"]
+            clean_status += "\n" + error + "\n"
+        except KeyError:
+            pass
+
         # Too onerous to pull out results of each step (when even available),
         # also would defeat dynamic config and tie client to Flow.
         # Instead, print out whatever is provided in `details` if Flow FAILED,
@@ -530,33 +538,23 @@ class CfdeClient:
             success_step = flow_info["success_step"]
             failure_step = flow_info["failure_step"]
             error_step = flow_info["error_step"]
-            if success_step in flow_output.keys():
+            if success_step in flow_output:
                 clean_status += flow_output[success_step]["details"]["message"]
-            elif failure_step in flow_output.keys():
+            elif failure_step in flow_output:
                 clean_status += flow_output[failure_step]["details"]["error"]
-            elif error_step in flow_output.keys():
+            elif error_step in flow_output:
                 clean_status += flow_output[error_step]["details"]["error"]
             else:
                 clean_status += ("Submission errored: The Flow has finished, but no final "
                                  "details are available.")
-        elif flow_status["status"] == "FAILED":
-            # Every Flow step can supply failure messages differently, so unfortunately
-            # printing out the entire details block is the only way to actually get
-            # the error message out.
-            # "cause" is printed earlier when available, so avoid double-printing it
-            if flow_status["details"].get("details", {}).get("cause"):
-                clean_status += "Submission Flow failed."
-            else:
-                details = flow_status.get("details", "No details available")
-                # Try to pretty-print JSON blob
-                try:
-                    details = json.dumps(details, indent=4, sort_keys=True)
-                except Exception:
-                    pass
-                clean_status += "Submission Flow failed: {}".format(details)
+            clean_status += "\n"
 
-        # Extra newline for cleanliness
-        clean_status += "\n"
+        elif flow_status["status"] == "FAILED":
+            if not error:
+                details = flow_status["details"]["details"]
+                details_simplified = self._format_flow_status(details)
+                clean_status += json.dumps(details_simplified, indent=4, sort_keys=True)
+
         # Return or print status
         if raw:
             return {
