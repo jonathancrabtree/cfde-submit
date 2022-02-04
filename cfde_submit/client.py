@@ -7,7 +7,7 @@ import os
 import requests
 import time
 import urllib.request
-from .version import __version__ as VERSION
+from .version import __version__ as version
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
 
@@ -66,7 +66,7 @@ class CfdeClient:
 
     @property
     def version(self):
-        return VERSION
+        return version
 
     @property
     def tokens(self):
@@ -157,6 +157,7 @@ class CfdeClient:
         a static config"""
         if self.__remote_config:
             return self.__remote_config
+        dconf_res = None
         try:
             dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINKS"][self.service_instance],
                                      headers={"X-Requested-With": "XMLHttpRequest"})
@@ -175,7 +176,6 @@ class CfdeClient:
             else:
                 raise ValueError("Flow configuration not JSON: \n{}".format(dconf_res.content))
         except Exception:
-            # TODO: Are there other exceptions that need to be handled/translated?
             raise
 
     @property
@@ -214,10 +214,11 @@ class CfdeClient:
             at = self.tokens[self.gcs_https_scope]["access_token"]
             return globus_sdk.AccessTokenAuthorizer(at)
 
-    def _is_json(self, json_string):
+    @staticmethod
+    def _is_json(json_string):
         try:
             json.loads(json_string)
-        except Exception:
+        except json.JSONDecodeError:
             return False
         return True
 
@@ -258,7 +259,7 @@ class CfdeClient:
                 logger.debug('No tokens for client, attempting load...')
                 self.tokens = self.__native_client.load_tokens_by_scope()
             # Verify client version is compatible with service
-            if parse_version(self.remote_config["MIN_VERSION"]) > parse_version(VERSION):
+            if parse_version(self.remote_config["MIN_VERSION"]) > parse_version(version):
                 raise exc.OutdatedVersion(
                     "This CFDE Client is not up to date and can no longer make "
                     "submissions. Please update the client and try again."
@@ -293,8 +294,9 @@ class CfdeClient:
 
             self.ready = True
             logger.info('Check PASSED, client is ready use flows.')
-        except Exception:
+        except Exception as e:
             logger.info('Check FAILED, client lacks permissions or is not logged in.')
+            logger.debug(e)
             self.ready = False
             if raise_exception is True:
                 raise
@@ -342,6 +344,7 @@ class CfdeClient:
                     When True, the data wil not remain in DERIVA to be viewed and the
                     Flow will terminate before any curation step.
             globus (bool): Should the data be transferred using Globus Transfer? Default False.
+            disable_validation (bool): When true, does not run frictionless. Useful when working with larger data
 
         Other keyword arguments are passed directly to the ``make_bag()`` function of the
         BDBag API (see https://github.com/fair-research/bdbag for details).
@@ -387,7 +390,14 @@ class CfdeClient:
         flow_input = {
             "cfde_ep_id": flow_info["cfde_ep_id"],
             "test_sub": test_sub,
-            "dcc_id": dcc_id
+            "dcc_id": dcc_id,
+            "funcx_endpoint": flow_info["funcx_endpoint"],
+            "funcx_function_id": flow_info["funcx_function_id"],
+            "funcx_params": {
+                "cfde_ep_url": flow_info["cfde_ep_url"],
+                "cfde_ep_path": dest_path,
+                "cfde_ep_token": self.tokens[self.gcs_https_scope]["access_token"]
+            }
         }
         if catalog_id:
             flow_input["catalog_id"] = str(catalog_id)
@@ -520,6 +530,7 @@ class CfdeClient:
             clean_status += "This flow has failed.\n"
 
         # Identify error message, if one exists
+        error = None
         try:
             cause = json.loads(flow_status["details"]["details"]["input"]["Cause"])
             error = cause["details"]["error"]
@@ -575,6 +586,8 @@ class CfdeClient:
             server = "app-staging.nih-cfde.org"
         elif self.__service_instance == "dev":
             server = "app-dev.nih-cfde.org"
+        else:
+            server = None
         url = f"https://{server}/ermrest/catalog/registry/entity/CFDE:dcc"
         with urllib.request.urlopen(url) as page:
             data = json.loads(page.read().decode())
