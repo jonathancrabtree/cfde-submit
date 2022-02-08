@@ -389,15 +389,11 @@ class CfdeClient:
         logger.debug("Creating input for Flow")
         flow_input = {
             "cfde_ep_id": flow_info["cfde_ep_id"],
+            "cfde_ep_token": self.tokens[self.gcs_https_scope]["access_token"],
             "test_sub": test_sub,
             "dcc_id": dcc_id,
             "funcx_endpoint": flow_info["funcx_endpoint"],
             "funcx_function_id": flow_info["funcx_function_id"],
-            "funcx_params": {
-                "cfde_ep_url": flow_info["cfde_ep_url"],
-                "cfde_ep_path": dest_path,
-                "cfde_ep_token": self.tokens[self.gcs_https_scope]["access_token"]
-            }
         }
         if catalog_id:
             flow_input["catalog_id"] = str(catalog_id)
