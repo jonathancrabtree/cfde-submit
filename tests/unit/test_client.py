@@ -55,12 +55,14 @@ def test_start_deriva_flow_http(logged_in, mock_validation, mock_remote_config, 
     assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
         'cfde_ep_id': 'prod_cfde_ep_id',
+        'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'data_url': 'https://prod-gcs-inst.data.globus.org/CFDE/data/prod/bagged_path.zip',
         'dcc_id': 'cfde_registry_dcc:my_dcc',
+        'funcx_endpoint': 'prod_funcx_endpoint',
+        'funcx_function_id': 'prod_funcx_function_id',
         'source_endpoint_id': False,
-        'test_sub': False
+        'test_sub': False,
     }
-
 
 def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, mock_flows_client,
                                mock_upload, mock_gcp_installed, mock_get_bag, mock_globus_sdk,
@@ -78,13 +80,16 @@ def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, m
     assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
         'cfde_ep_id': 'prod_cfde_ep_id',
-        'dcc_id': 'cfde_registry_dcc:my_dcc',
-        'source_endpoint_id': 'local_gcp_endpoint_id',
-        'test_sub': False,
         'cfde_ep_path': '/CFDE/data/prod/bagged_path.zip',
+        'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'cfde_ep_url': 'https://prod-gcs-inst.data.globus.org',
+        'dcc_id': 'cfde_registry_dcc:my_dcc',
+        'funcx_endpoint': 'prod_funcx_endpoint',
+        'funcx_function_id': 'prod_funcx_function_id',
         'is_directory': False,
-        'source_path': 'bagged_path.zip'
+        'source_endpoint_id': 'local_gcp_endpoint_id',
+        'source_path': 'bagged_path.zip',
+        'test_sub': False,
     }
 
 
@@ -190,10 +195,13 @@ def test_start_deriva_flow_valid_long_dcc(logged_in, mock_validation, mock_remot
     assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
         'cfde_ep_id': 'prod_cfde_ep_id',
+        'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'data_url': 'https://prod-gcs-inst.data.globus.org/CFDE/data/prod/bagged_path.zip',
         'dcc_id': 'cfde_registry_dcc:gtex',
+        'funcx_endpoint': 'prod_funcx_endpoint',
+        'funcx_function_id': 'prod_funcx_function_id',
         'source_endpoint_id': False,
-        'test_sub': False
+        'test_sub': False,
     }
 
 
@@ -207,8 +215,11 @@ def test_start_deriva_flow_valid_short_dcc(logged_in, mock_validation, mock_remo
     assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
         'cfde_ep_id': 'prod_cfde_ep_id',
+        'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'data_url': 'https://prod-gcs-inst.data.globus.org/CFDE/data/prod/bagged_path.zip',
         'dcc_id': 'cfde_registry_dcc:gtex',
+        'funcx_endpoint': 'prod_funcx_endpoint',
+        'funcx_function_id': 'prod_funcx_function_id',
         'source_endpoint_id': False,
-        'test_sub': False
+        'test_sub': False,
     }

@@ -215,10 +215,10 @@ class CfdeClient:
             return globus_sdk.AccessTokenAuthorizer(at)
 
     @staticmethod
-    def _is_json(json_string):
+    def is_json(json_string):
         try:
             json.loads(json_string)
-        except json.JSONDecodeError:
+        except ValueError:
             return False
         return True
 
@@ -226,7 +226,7 @@ class CfdeClient:
         keys_to_ignore = ["creator_id", "manage_by", "monitor_by"]
         result = dict()
         for k, v in data.items():
-            if self._is_json(v):
+            if self.is_json(v):
                 v = json.loads(v)
             if isinstance(v, dict):
                 v = self._format_flow_status(v)
@@ -379,26 +379,29 @@ class CfdeClient:
         flow_info = self.remote_config["FLOWS"][self.service_instance]
         dest_path = "{}{}".format(flow_info["cfde_ep_path"], os.path.basename(data_path))
 
-        # If doing dry run, stop here before making Flow input
-        if dry_run:
-            return {
-                "success": True,
-                "message": "Dry run validated successfully. No data was transferred."
-            }
 
         logger.debug("Creating input for Flow")
         flow_input = {
             "cfde_ep_id": flow_info["cfde_ep_id"],
             "cfde_ep_token": self.tokens[self.gcs_https_scope]["access_token"],
-            "test_sub": test_sub,
             "dcc_id": dcc_id,
             "funcx_endpoint": flow_info["funcx_endpoint"],
             "funcx_function_id": flow_info["funcx_function_id"],
+            "test_sub": test_sub,
         }
+
         if catalog_id:
             flow_input["catalog_id"] = str(catalog_id)
         if server:
             flow_input["server"] = server
+
+        # If doing dry run, stop here before transferring data
+        if dry_run:
+            logger.debug("Flow input parameters (minus transfer fields):\n{}".format(json.dumps(flow_input, indent=4, sort_keys=True)))
+            return {
+                "success": True,
+                "message": "Dry run validated successfully. No data was transferred."
+            }
 
         # Transfer data via globus
         if globus:
@@ -431,11 +434,11 @@ class CfdeClient:
 
             # Populate Transfer fields in Flow
             flow_input.update({
-                "source_endpoint_id": local_endpoint,
-                "source_path": data_path,
                 "cfde_ep_path": dest_path,
                 "cfde_ep_url": flow_info["cfde_ep_url"],
                 "is_directory": False,
+                "source_endpoint_id": local_endpoint,
+                "source_path": data_path,
             })
 
         # Otherwise, HTTP PUT the BDBag on the server
@@ -529,8 +532,9 @@ class CfdeClient:
         error = None
         try:
             cause = json.loads(flow_status["details"]["details"]["input"]["Cause"])
-            error = cause["details"]["error"]
-            clean_status += "\n" + error + "\n"
+            if "error" in cause["details"]["error"]:
+                error = cause["details"]["error"]
+                clean_status += "\n" + error + "\n"
         except KeyError:
             pass
 
