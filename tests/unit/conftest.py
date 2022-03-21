@@ -26,13 +26,13 @@ def mock_remote_config(monkeypatch):
     For the day you want to test fetching remote configs:
     https://stackoverflow.com/questions/38748257/disable-autouse-fixtures-on-specific-pytest-marks
     """
-    catalog_keys = ["cfde_ep_id", 
-                    "cfde_ep_path", 
-                    "cfde_ep_url", 
-                    "error_step", 
-                    "failure_step", 
-                    "flow_id", 
-                    "funcx_endpoint", 
+    catalog_keys = ["cfde_ep_id",
+                    "cfde_ep_path",
+                    "cfde_ep_url",
+                    "error_step",
+                    "failure_step",
+                    "flow_id",
+                    "funcx_endpoint",
                     "funcx_function_id",
                     "success_step"]
     mock_catalog = {

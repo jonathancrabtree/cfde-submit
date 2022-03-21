@@ -344,7 +344,8 @@ class CfdeClient:
                     When True, the data wil not remain in DERIVA to be viewed and the
                     Flow will terminate before any curation step.
             globus (bool): Should the data be transferred using Globus Transfer? Default False.
-            disable_validation (bool): When true, does not run frictionless. Useful when working with larger data
+            disable_validation (bool): When true, does not run frictionless. Useful when working
+                    with larger data
 
         Other keyword arguments are passed directly to the ``make_bag()`` function of the
         BDBag API (see https://github.com/fair-research/bdbag for details).
@@ -379,7 +380,6 @@ class CfdeClient:
         flow_info = self.remote_config["FLOWS"][self.service_instance]
         dest_path = "{}{}".format(flow_info["cfde_ep_path"], os.path.basename(data_path))
 
-
         logger.debug("Creating input for Flow")
         flow_input = {
             "cfde_ep_id": flow_info["cfde_ep_id"],
@@ -397,7 +397,8 @@ class CfdeClient:
 
         # If doing dry run, stop here before transferring data
         if dry_run:
-            logger.debug("Flow input parameters (minus transfer fields):\n{}".format(json.dumps(flow_input, indent=4, sort_keys=True)))
+            logger.debug("Flow input parameters (minus transfer fields):\n{}"
+                         .format(json.dumps(flow_input, indent=4, sort_keys=True)))
             return {
                 "success": True,
                 "message": "Dry run validated successfully. No data was transferred."

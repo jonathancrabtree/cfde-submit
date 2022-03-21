@@ -64,6 +64,7 @@ def test_start_deriva_flow_http(logged_in, mock_validation, mock_remote_config, 
         'test_sub': False,
     }
 
+
 def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, mock_flows_client,
                                mock_upload, mock_gcp_installed, mock_get_bag, mock_globus_sdk,
                                mock_dcc_check):
