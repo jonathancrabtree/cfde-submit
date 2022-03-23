@@ -99,15 +99,18 @@ This command will automatically do the following things.
 
 You can specify the following `OPTIONS` with `cfde-submit run`.
 
-  - ``--output-dir=OUTPUT_DIR`` will copy the data in ``DATA-PATH``, if it is a
+ - ``--dcc DCCNAME`` allows you to specify which dcc to use for the submission.
+  - ``--delete-dir`` will trigger deletion of the ``output-dir`` after processing
+    is complete. If you didn't specify ``output-dir``, this option has no effect.
+  - ``--disable-validation`` will disable local validation before submission. Use this option when working with very large data to speed things up.
+  - ``--dry-run`` will bag and validate your data, but data will not be uploaded
+  - ``--ignore-git`` will prevent the client from overwriting ``output-dir`` and ``delete-dir`` to handle Git repositories.
+  - ``--output-dir OUTPUT_DIR`` will copy the data in ``DATA-PATH``, if it is a
     directory, to the location you specify, which must not exist and must not
     be inside ``DATA-PATH``. The resulting BDBag will be named after the output
     directory. If not specified, the BDBag will be created in-place in
     ``DATA_PATH`` if necessary.
-  - ``--delete-dir`` will trigger deletion of the ``output-dir`` after processing
-    is complete. If you didn't specify ``output-dir``, this option has no effect.
-  - ``--ignore-git`` will prevent the client from overwriting ``output-dir`` and ``delete-dir`` to handle Git repositories.
-  - ``--disable-validation`` will disable local validation before submission. Use this option when working with very large data to speed things up.
+
 
 ### Status
 
@@ -156,3 +159,5 @@ example if you want to unset the default DCC.
 ```
 cfde-submit reset
 ```
+
+

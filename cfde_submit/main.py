@@ -3,6 +3,7 @@ import json
 import logging.config
 import os
 import sys
+import traceback
 
 from cfde_submit import CfdeClient, CONFIG, exc, version
 
@@ -116,9 +117,9 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, 
             exit_on_exception("Aborted. No data submitted.")
     except (exc.SubmissionsUnavailable, exc.InvalidInput, exc.ValidationException,
             exc.EndpointUnavailable, FileExistsError) as e:
-        exit_on_exception(e)
+        exit_on_exception(e, tb=True)
     except Exception as e:
-        exit_on_exception(repr(e))
+        exit_on_exception(repr(e), tb=True)
     else:
         if not start_res["success"]:
             print("Error during Flow startup: {}".format(start_res["error"]))
@@ -256,6 +257,10 @@ def yes_or_no(question):
         return yes_or_no(question)
 
 
-def exit_on_exception(e):
+def exit_on_exception(e, tb=False):
     """ Print an exception and exit with an error """
-    sys.exit(click.style(str(e), fg='red'))
+    msg = click.style(str(e), fg='red')
+    if tb:
+        tb_message = traceback.format_exc()
+        msg = msg + "\n" + tb_message
+    sys.exit(msg)

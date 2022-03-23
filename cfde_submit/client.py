@@ -341,7 +341,7 @@ class CfdeClient:
                     Default False.
             test_sub (bool): Should the submission be run in "test mode" where
                     the submission will be inegsted into DERIVA and immediately deleted?
-                    When True, the data wil not remain in DERIVA to be viewed and the
+                    When True, the data will not remain in DERIVA to be viewed and the
                     Flow will terminate before any curation step.
             globus (bool): Should the data be transferred using Globus Transfer? Default False.
             disable_validation (bool): When true, does not run frictionless. Useful when working
@@ -364,7 +364,7 @@ class CfdeClient:
         # Verify the dcc is valid
         if ':' not in dcc_id:
             dcc_id = f"cfde_registry_dcc:{dcc_id}"
-        if not self.valid_dcc(dcc_id):
+        if not dry_run and not self.valid_dcc(dcc_id):
             raise exc.InvalidInput("Error: The dcc you've specified is not valid. Please double "
                                    "check the spelling and try again.")
 
@@ -533,7 +533,7 @@ class CfdeClient:
         error = None
         try:
             cause = json.loads(flow_status["details"]["details"]["input"]["Cause"])
-            if "error" in cause["details"]["error"]:
+            if "error" in cause["details"]:
                 error = cause["details"]["error"]
                 clean_status += "\n" + error + "\n"
         except KeyError:
