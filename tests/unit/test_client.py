@@ -225,6 +225,7 @@ def test_start_deriva_flow_valid_short_dcc(logged_in, mock_validation, mock_remo
         'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'data_url': 'https://prod-gcs-inst.data.globus.org/CFDE/data/prod/bagged_path.zip',
         'dcc_id': 'cfde_registry_dcc:gtex',
+        'deriva_server': 'app.nih-cfde.org',
         'funcx_endpoint': 'prod_funcx_endpoint',
         'funcx_function_id': 'prod_funcx_function_id',
         'source_endpoint_id': False,
