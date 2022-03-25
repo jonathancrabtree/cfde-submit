@@ -388,13 +388,13 @@ class CfdeClient:
             "funcx_endpoint": flow_info["funcx_endpoint"],
             "funcx_function_id": flow_info["funcx_function_id"],
             "test_sub": test_sub,
+            "deriva_server": server or self.get_deriva_server(),
         }
 
         if catalog_id:
             flow_input["catalog_id"] = str(catalog_id)
         if server:
             flow_input["server"] = server
-
         # If doing dry run, stop here before transferring data
         if dry_run:
             logger.debug("Flow input parameters (minus transfer fields):\n{}"
@@ -528,6 +528,9 @@ class CfdeClient:
             clean_status += "This flow has completed.\n"
         elif flow_status["status"] == "FAILED":
             clean_status += "This flow has failed.\n"
+        else:
+            clean_status += "The flow status is undefined. Please report this error and the " \
+                            "instance ID to support@cfde.atlassian.net"
 
         # Identify error message, if one exists
         error = None
@@ -563,9 +566,12 @@ class CfdeClient:
 
         elif flow_status["status"] == "FAILED":
             if not error:
-                details = flow_status["details"]["details"]
-                details_simplified = self._format_flow_status(details)
-                clean_status += json.dumps(details_simplified, indent=4, sort_keys=True)
+                try:
+                    details = flow_status["details"]["details"]
+                    details_simplified = self._format_flow_status(details)
+                    clean_status += json.dumps(details_simplified, indent=4, sort_keys=True)
+                except KeyError:
+                    clean_status += json.dumps(flow_status, indent=4, sort_keys=True)
 
         # Return or print status
         if raw:
@@ -581,6 +587,14 @@ class CfdeClient:
         """
         Verify that a user specified dcc exists in the deriva registry
         """
+        server = self.get_deriva_server()
+        url = f"https://{server}/ermrest/catalog/registry/entity/CFDE:dcc"
+        with urllib.request.urlopen(url) as page:
+            data = json.loads(page.read().decode())
+            dccs = [x['id'] for x in data]
+        return dcc in dccs
+
+    def get_deriva_server(self):
         if self.__service_instance == "prod":
             server = "app.nih-cfde.org"
         elif self.__service_instance == "staging":
@@ -589,8 +603,4 @@ class CfdeClient:
             server = "app-dev.nih-cfde.org"
         else:
             server = None
-        url = f"https://{server}/ermrest/catalog/registry/entity/CFDE:dcc"
-        with urllib.request.urlopen(url) as page:
-            data = json.loads(page.read().decode())
-            dccs = [x['id'] for x in data]
-        return dcc in dccs
+        return server
