@@ -1,10 +1,9 @@
-from unittest.mock import Mock, PropertyMock
-import pytest
+import cfde_submit
 import fair_research_login
 import globus_sdk
-
+import pytest
 from cfde_submit import CONFIG, version, validation, globus_http, bdbag_utils
-import cfde_submit
+from unittest.mock import Mock, PropertyMock
 
 # Maximum output logging!
 CONFIG['LOGGING']['handlers']['console']['class'] = 'logging.StreamHandler'
@@ -26,7 +25,16 @@ def mock_remote_config(monkeypatch):
     For the day you want to test fetching remote configs:
     https://stackoverflow.com/questions/38748257/disable-autouse-fixtures-on-specific-pytest-marks
     """
-    catalog_keys = ["flow_id", "success_step", "failure_step", "error_step", "cfde_ep_id"]
+    catalog_keys = ["cfde_ep_id",
+                    "cfde_ep_path",
+                    "cfde_ep_url",
+                    "deriva_server",
+                    "error_step",
+                    "failure_step",
+                    "flow_id",
+                    "funcx_endpoint",
+                    "funcx_function_id",
+                    "success_step"]
     mock_catalog = {
         "CATALOGS": {
             "prod": "prod",

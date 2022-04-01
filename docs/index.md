@@ -73,7 +73,7 @@ To login, enter the following command.
 
 If you aren't already logged in, the login process will begin. The login process will vary depending on whether or not you have a web browser on the system where you are running `cfde-submit`.
 
-If you run `cfde-submit login` on a computer with a web browser, your browser will automatically open to a login page. Make sure you login using the same identity you used when you completed the section [Obtain authorization to use cfde-submit](#Obtain-authorization-to-use-cfde-submit) above. When your login completes, you may close your web browser window. `cfde-submit` will display a message stating that you are logged in and then exit.
+If you run `cfde-submit login` on a computer with a web browser, your browser will automatically open to a login page. Make sure you login using the same identity you used when you completed the section [Obtain authorization to use cfde-submit](#Obtain-authorization-to-use-cfde-submit) above. When your login completes, you may close your web browser window. `cfde-submit` will display a message stating that you are logged in and then exit. The automatic opening a browser can be disabled by using the no_browser option: `cfde-submit login --no_browser`.
 
 If you run `cfde-submit login` in a remote terminal shell, the command will display a web address that you must visit to login and prompt you to enter a code. Copy the web address, open a web browser on your local system, and paste in the address. Make sure you login using the same identity you used when you completed the section [Obtain authorization to use cfde-submit](#Obtain-authorization-to-use-cfde-submit) above. When your login completes, a code will be displayed in the browser window. Copy this code and paste it into the prompt displayed by the `cfde-submit` command. `cfde-submit` will display a message stating that you are logged in and then exit.
 
@@ -99,15 +99,18 @@ This command will automatically do the following things.
 
 You can specify the following `OPTIONS` with `cfde-submit run`.
 
-  - ``--output-dir=OUTPUT_DIR`` will copy the data in ``DATA-PATH``, if it is a
+ - ``--dcc DCCNAME`` allows you to specify which dcc to use for the submission.
+  - ``--delete-dir`` will trigger deletion of the ``output-dir`` after processing
+    is complete. If you didn't specify ``output-dir``, this option has no effect.
+  - ``--disable-validation`` will disable local validation before submission. Use this option when working with very large data to speed things up.
+  - ``--dry-run`` will bag and validate your data, but data will not be uploaded
+  - ``--ignore-git`` will prevent the client from overwriting ``output-dir`` and ``delete-dir`` to handle Git repositories.
+  - ``--output-dir OUTPUT_DIR`` will copy the data in ``DATA-PATH``, if it is a
     directory, to the location you specify, which must not exist and must not
     be inside ``DATA-PATH``. The resulting BDBag will be named after the output
     directory. If not specified, the BDBag will be created in-place in
     ``DATA_PATH`` if necessary.
-  - ``--delete-dir`` will trigger deletion of the ``output-dir`` after processing
-    is complete. If you didn't specify ``output-dir``, this option has no effect.
-  - ``--ignore-git`` will prevent the client from overwriting ``output-dir`` and ``delete-dir`` to handle Git repositories.
-  - ``--disable-validation`` will disable local validation before submission. Use this option when working with very large data to speed things up.
+
 
 ### Status
 

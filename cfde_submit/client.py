@@ -7,7 +7,7 @@ import os
 import requests
 import time
 import urllib.request
-from .version import __version__ as VERSION
+from .version import __version__ as version
 from cfde_submit import CONFIG, exc, globus_http, validation, bdbag_utils
 from packaging.version import parse as parse_version
 
@@ -66,7 +66,7 @@ class CfdeClient:
 
     @property
     def version(self):
-        return VERSION
+        return version
 
     @property
     def tokens(self):
@@ -157,6 +157,7 @@ class CfdeClient:
         a static config"""
         if self.__remote_config:
             return self.__remote_config
+        dconf_res = None
         try:
             dconf_res = requests.get(CONFIG["DYNAMIC_CONFIG_LINKS"][self.service_instance],
                                      headers={"X-Requested-With": "XMLHttpRequest"})
@@ -175,7 +176,6 @@ class CfdeClient:
             else:
                 raise ValueError("Flow configuration not JSON: \n{}".format(dconf_res.content))
         except Exception:
-            # TODO: Are there other exceptions that need to be handled/translated?
             raise
 
     @property
@@ -214,10 +214,11 @@ class CfdeClient:
             at = self.tokens[self.gcs_https_scope]["access_token"]
             return globus_sdk.AccessTokenAuthorizer(at)
 
-    def _is_json(self, json_string):
+    @staticmethod
+    def is_json(json_string):
         try:
             json.loads(json_string)
-        except Exception:
+        except (ValueError, TypeError):
             return False
         return True
 
@@ -225,7 +226,7 @@ class CfdeClient:
         keys_to_ignore = ["creator_id", "manage_by", "monitor_by"]
         result = dict()
         for k, v in data.items():
-            if self._is_json(v):
+            if self.is_json(v):
                 v = json.loads(v)
             if isinstance(v, dict):
                 v = self._format_flow_status(v)
@@ -258,7 +259,7 @@ class CfdeClient:
                 logger.debug('No tokens for client, attempting load...')
                 self.tokens = self.__native_client.load_tokens_by_scope()
             # Verify client version is compatible with service
-            if parse_version(self.remote_config["MIN_VERSION"]) > parse_version(VERSION):
+            if parse_version(self.remote_config["MIN_VERSION"]) > parse_version(version):
                 raise exc.OutdatedVersion(
                     "This CFDE Client is not up to date and can no longer make "
                     "submissions. Please update the client and try again."
@@ -293,8 +294,9 @@ class CfdeClient:
 
             self.ready = True
             logger.info('Check PASSED, client is ready use flows.')
-        except Exception:
+        except Exception as e:
             logger.info('Check FAILED, client lacks permissions or is not logged in.')
+            logger.debug(e)
             self.ready = False
             if raise_exception is True:
                 raise
@@ -339,9 +341,11 @@ class CfdeClient:
                     Default False.
             test_sub (bool): Should the submission be run in "test mode" where
                     the submission will be inegsted into DERIVA and immediately deleted?
-                    When True, the data wil not remain in DERIVA to be viewed and the
+                    When True, the data will not remain in DERIVA to be viewed and the
                     Flow will terminate before any curation step.
             globus (bool): Should the data be transferred using Globus Transfer? Default False.
+            disable_validation (bool): When true, does not run frictionless. Useful when working
+                    with larger data
 
         Other keyword arguments are passed directly to the ``make_bag()`` function of the
         BDBag API (see https://github.com/fair-research/bdbag for details).
@@ -360,7 +364,7 @@ class CfdeClient:
         # Verify the dcc is valid
         if ':' not in dcc_id:
             dcc_id = f"cfde_registry_dcc:{dcc_id}"
-        if not self.valid_dcc(dcc_id):
+        if not dry_run and not self.valid_dcc(dcc_id):
             raise exc.InvalidInput("Error: The dcc you've specified is not valid. Please double "
                                    "check the spelling and try again.")
 
@@ -376,23 +380,29 @@ class CfdeClient:
         flow_info = self.remote_config["FLOWS"][self.service_instance]
         dest_path = "{}{}".format(flow_info["cfde_ep_path"], os.path.basename(data_path))
 
-        # If doing dry run, stop here before making Flow input
-        if dry_run:
-            return {
-                "success": True,
-                "message": "Dry run validated successfully. No data was transferred."
-            }
-
         logger.debug("Creating input for Flow")
         flow_input = {
             "cfde_ep_id": flow_info["cfde_ep_id"],
+            "cfde_ep_token": self.tokens[self.gcs_https_scope]["access_token"],
+            "dcc_id": dcc_id,
+            "funcx_endpoint": flow_info["funcx_endpoint"],
+            "funcx_function_id": flow_info["funcx_function_id"],
             "test_sub": test_sub,
-            "dcc_id": dcc_id
+            "deriva_server": server or self.get_deriva_server(),
         }
+
         if catalog_id:
             flow_input["catalog_id"] = str(catalog_id)
         if server:
             flow_input["server"] = server
+        # If doing dry run, stop here before transferring data
+        if dry_run:
+            logger.debug("Flow input parameters (minus transfer fields):\n{}"
+                         .format(json.dumps(flow_input, indent=4, sort_keys=True)))
+            return {
+                "success": True,
+                "message": "Dry run validated successfully. No data was transferred."
+            }
 
         # Transfer data via globus
         if globus:
@@ -425,11 +435,11 @@ class CfdeClient:
 
             # Populate Transfer fields in Flow
             flow_input.update({
-                "source_endpoint_id": local_endpoint,
-                "source_path": data_path,
                 "cfde_ep_path": dest_path,
                 "cfde_ep_url": flow_info["cfde_ep_url"],
                 "is_directory": False,
+                "source_endpoint_id": local_endpoint,
+                "source_path": data_path,
             })
 
         # Otherwise, HTTP PUT the BDBag on the server
@@ -518,12 +528,17 @@ class CfdeClient:
             clean_status += "This flow has completed.\n"
         elif flow_status["status"] == "FAILED":
             clean_status += "This flow has failed.\n"
+        else:
+            clean_status += "The flow status is undefined. Please report this error and the " \
+                            "instance ID to support@cfde.atlassian.net"
 
         # Identify error message, if one exists
+        error = None
         try:
             cause = json.loads(flow_status["details"]["details"]["input"]["Cause"])
-            error = cause["details"]["error"]
-            clean_status += "\n" + error + "\n"
+            if "error" in cause["details"]:
+                error = cause["details"]["error"]
+                clean_status += "\n" + error + "\n"
         except KeyError:
             pass
 
@@ -551,9 +566,12 @@ class CfdeClient:
 
         elif flow_status["status"] == "FAILED":
             if not error:
-                details = flow_status["details"]["details"]
-                details_simplified = self._format_flow_status(details)
-                clean_status += json.dumps(details_simplified, indent=4, sort_keys=True)
+                try:
+                    details = flow_status["details"]["details"]
+                    details_simplified = self._format_flow_status(details)
+                    clean_status += json.dumps(details_simplified, indent=4, sort_keys=True)
+                except KeyError:
+                    clean_status += json.dumps(flow_status, indent=4, sort_keys=True)
 
         # Return or print status
         if raw:
@@ -569,14 +587,20 @@ class CfdeClient:
         """
         Verify that a user specified dcc exists in the deriva registry
         """
+        server = self.get_deriva_server()
+        url = f"https://{server}/ermrest/catalog/registry/entity/CFDE:dcc"
+        with urllib.request.urlopen(url) as page:
+            data = json.loads(page.read().decode())
+            dccs = [x['id'] for x in data]
+        return dcc in dccs
+
+    def get_deriva_server(self):
         if self.__service_instance == "prod":
             server = "app.nih-cfde.org"
         elif self.__service_instance == "staging":
             server = "app-staging.nih-cfde.org"
         elif self.__service_instance == "dev":
             server = "app-dev.nih-cfde.org"
-        url = f"https://{server}/ermrest/catalog/registry/entity/CFDE:dcc"
-        with urllib.request.urlopen(url) as page:
-            data = json.loads(page.read().decode())
-            dccs = [x['id'] for x in data]
-        return dcc in dccs
+        else:
+            server = None
+        return server

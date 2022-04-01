@@ -1,7 +1,6 @@
 import pytest
 from globus_automate_client.flows_client import ALL_FLOW_SCOPES
 from cfde_submit import client, exc
-from unittest.mock import patch
 
 
 def test_logged_out(logged_out):
@@ -55,10 +54,14 @@ def test_start_deriva_flow_http(logged_in, mock_validation, mock_remote_config, 
     assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
         'cfde_ep_id': 'prod_cfde_ep_id',
+        'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'data_url': 'https://prod-gcs-inst.data.globus.org/CFDE/data/prod/bagged_path.zip',
         'dcc_id': 'cfde_registry_dcc:my_dcc',
+        'deriva_server': 'app.nih-cfde.org',
+        'funcx_endpoint': 'prod_funcx_endpoint',
+        'funcx_function_id': 'prod_funcx_function_id',
         'source_endpoint_id': False,
-        'test_sub': False
+        'test_sub': False,
     }
 
 
@@ -78,13 +81,17 @@ def test_start_deriva_flow_gcp(logged_in, mock_validation, mock_remote_config, m
     assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
         'cfde_ep_id': 'prod_cfde_ep_id',
-        'dcc_id': 'cfde_registry_dcc:my_dcc',
-        'source_endpoint_id': 'local_gcp_endpoint_id',
-        'test_sub': False,
         'cfde_ep_path': '/CFDE/data/prod/bagged_path.zip',
+        'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'cfde_ep_url': 'https://prod-gcs-inst.data.globus.org',
+        'dcc_id': 'cfde_registry_dcc:my_dcc',
+        'deriva_server': 'app.nih-cfde.org',
+        'funcx_endpoint': 'prod_funcx_endpoint',
+        'funcx_function_id': 'prod_funcx_function_id',
         'is_directory': False,
-        'source_path': 'bagged_path.zip'
+        'source_endpoint_id': 'local_gcp_endpoint_id',
+        'source_path': 'bagged_path.zip',
+        'test_sub': False,
     }
 
 
@@ -121,11 +128,15 @@ def test_client_permission_denied_405(logged_in, mock_remote_config, mock_flows_
         client.CfdeClient().check()
 
 
-@patch('globus_sdk.LocalGlobusConnectPersonal.endpoint_id', None)
-def test_transfer_client_not_installed(logged_in, mock_validation, mock_get_bag, mock_globus_sdk,
-                                       mock_dcc_check):
+def test_transfer_client_not_installed(logged_in, mock_validation, mock_get_bag, mock_dcc_check,
+                                       mock_globus_sdk, mock_gcp_uninstalled):
     with pytest.raises(exc.EndpointUnavailable):
         client.CfdeClient().start_deriva_flow("path_to_executable.zip", "my_dcc", globus=True)
+
+
+def test_transfer_client_installed(logged_in, mock_validation, mock_get_bag, mock_dcc_check,
+                                   mock_globus_sdk, mock_gcp_installed):
+    client.CfdeClient().start_deriva_flow("path_to_executable.zip", "my_dcc", globus=True)
 
 
 def test_transfer_client_local_endpoint_error(logged_in, mock_validation, mock_get_bag,
@@ -190,10 +201,14 @@ def test_start_deriva_flow_valid_long_dcc(logged_in, mock_validation, mock_remot
     assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
         'cfde_ep_id': 'prod_cfde_ep_id',
+        'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'data_url': 'https://prod-gcs-inst.data.globus.org/CFDE/data/prod/bagged_path.zip',
+        'deriva_server': 'app.nih-cfde.org',
         'dcc_id': 'cfde_registry_dcc:gtex',
+        'funcx_endpoint': 'prod_funcx_endpoint',
+        'funcx_function_id': 'prod_funcx_function_id',
         'source_endpoint_id': False,
-        'test_sub': False
+        'test_sub': False,
     }
 
 
@@ -207,8 +222,12 @@ def test_start_deriva_flow_valid_short_dcc(logged_in, mock_validation, mock_remo
     assert flow_scope == 'https://auth.globus.org/scopes/prod_flow_id/flow_prod_flow_id_user'
     assert flow_input == {
         'cfde_ep_id': 'prod_cfde_ep_id',
+        'cfde_ep_token': 'https://auth.globus.org/scopes/prod_cfde_ep_id/https_access_token',
         'data_url': 'https://prod-gcs-inst.data.globus.org/CFDE/data/prod/bagged_path.zip',
         'dcc_id': 'cfde_registry_dcc:gtex',
+        'deriva_server': 'app.nih-cfde.org',
+        'funcx_endpoint': 'prod_funcx_endpoint',
+        'funcx_function_id': 'prod_funcx_function_id',
         'source_endpoint_id': False,
-        'test_sub': False
+        'test_sub': False,
     }
