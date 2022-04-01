@@ -73,7 +73,7 @@ To login, enter the following command.
 
 If you aren't already logged in, the login process will begin. The login process will vary depending on whether or not you have a web browser on the system where you are running `cfde-submit`.
 
-If you run `cfde-submit login` on a computer with a web browser, your browser will automatically open to a login page. Make sure you login using the same identity you used when you completed the section [Obtain authorization to use cfde-submit](#Obtain-authorization-to-use-cfde-submit) above. When your login completes, you may close your web browser window. `cfde-submit` will display a message stating that you are logged in and then exit.
+If you run `cfde-submit login` on a computer with a web browser, your browser will automatically open to a login page. Make sure you login using the same identity you used when you completed the section [Obtain authorization to use cfde-submit](#Obtain-authorization-to-use-cfde-submit) above. When your login completes, you may close your web browser window. `cfde-submit` will display a message stating that you are logged in and then exit. The automatic opening a browser can be disabled by using the no_browser option: `cfde-submit login --no_browser`.
 
 If you run `cfde-submit login` in a remote terminal shell, the command will display a web address that you must visit to login and prompt you to enter a code. Copy the web address, open a web browser on your local system, and paste in the address. Make sure you login using the same identity you used when you completed the section [Obtain authorization to use cfde-submit](#Obtain-authorization-to-use-cfde-submit) above. When your login completes, a code will be displayed in the browser window. Copy this code and paste it into the prompt displayed by the `cfde-submit` command. `cfde-submit` will display a message stating that you are logged in and then exit.
 
@@ -159,5 +159,3 @@ example if you want to unset the default DCC.
 ```
 cfde-submit reset
 ```
-
-

@@ -117,7 +117,7 @@ def run(data_path, dcc_id, catalog, schema, output_dir, delete_dir, ignore_git, 
             exit_on_exception("Aborted. No data submitted.")
     except (exc.SubmissionsUnavailable, exc.InvalidInput, exc.ValidationException,
             exc.EndpointUnavailable, FileExistsError) as e:
-        exit_on_exception(e, tb=True)
+        exit_on_exception(e)
     except Exception as e:
         exit_on_exception(repr(e), tb=True)
     else:
@@ -167,8 +167,7 @@ def status(flow_id, flow_instance_id, raw, client_state_file):
             err = repr(e)
         else:
             err = str(e)
-        print("Error checking status for Flow '{}': {}".format(flow_instance_id, err))
-        return
+        exit_on_exception(f"Error checking status for Flow {flow_instance_id}: {err}\n", tb=True)
     else:
         if raw:
             print(json.dumps(status_res, indent=4, sort_keys=True))

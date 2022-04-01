@@ -218,7 +218,7 @@ class CfdeClient:
     def is_json(json_string):
         try:
             json.loads(json_string)
-        except ValueError:
+        except (ValueError, TypeError):
             return False
         return True
 
