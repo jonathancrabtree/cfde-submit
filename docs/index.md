@@ -99,7 +99,7 @@ This command will automatically do the following things.
 
 You can specify the following `OPTIONS` with `cfde-submit run`.
 
- - ``--dcc DCCNAME`` allows you to specify which dcc to use for the submission.
+ - ``--dcc-id DCCNAME`` allows you to specify which dcc to use for the submission.
   - ``--delete-dir`` will trigger deletion of the ``output-dir`` after processing
     is complete. If you didn't specify ``output-dir``, this option has no effect.
   - ``--disable-validation`` will disable local validation before submission. Use this option when working with very large data to speed things up.
