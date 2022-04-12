@@ -19,6 +19,9 @@ Alternatively, you can also use conda to create a new virtual environment.
 3. Successful activation of the virtual environment will result in the update from "(base)" to "(cfde_venv)" in front of your shell prompt
 4. To exit the environment run: `conda deactivate`
 
+## Install Git
+`cfde-submit` has the ability to read data from github repositories. To avoid any git-related errors, please install the git on your system. On Ubuntu, this can be done by running `sudo apt update` and `sudo apt install git`.
+
 ## Install cfde-submit
 The most recent release of `cfde-submit` can be installed via pip. The commands below should be run while the `cfde_venv` environment is active.
 
