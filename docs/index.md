@@ -36,7 +36,7 @@ Once your DCC has been registered with CFDE, your Principal Investigator (or des
 
 ### Prepare your C2M2 instance
 
-The `cfde-submit` tool takes a valid C2M2 instance as its input. Any any given time, each DCC has a single C2M2 instance visible in the CFDE portal's public views. Of course, you may revise your DCC's C2M2 instance when your DCC's data changes. You may submit several versions of your DCC's C2M2 instance and review each in a private Data Review area in the portal before approving a single instance for use in the public portal views.
+The `cfde-submit` tool takes a valid C2M2 instance as its input. At any given time, each DCC has a single C2M2 instance visible in the CFDE portal's public views. Of course, you may revise your DCC's C2M2 instance when your DCC's data changes. You may submit several versions of your DCC's C2M2 instance and review each in a private Data Review area in the portal before approving a single instance for use in the public portal views.
 
 Constructing a C2M2 instance requires comprehensive knowledge of your DCC's data. The [C2M2 documentation](https://docs.nih-cfde.org/en/latest/c2m2/draft-C2M2_specification/) describes the data model and how to construct a C2M2 instance for your DCC's data.
 
